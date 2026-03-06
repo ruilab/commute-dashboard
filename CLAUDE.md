@@ -25,13 +25,15 @@ bun run db:generate      # Generate migrations
 ```
 
 ## Architecture
-- `src/lib/db/schema.ts` — Single source of truth for all tables
-- `src/lib/services/` — External data providers (transit, weather, calendar, push)
+- `src/lib/db/schema.ts` — Single source of truth for all tables (20+ tables)
+- `src/lib/services/` — External data providers (transit, weather, calendar, push, ferry)
 - `src/lib/engine/` — Recommendation, correlation, streaks engines
-- `src/lib/actions/` — Server actions (commute, dashboard, insights, settings)
-- `src/app/api/` — API routes (auth, calendar, checkin sync, push, widget, cron)
+- `src/lib/actions/` — Server actions (commute, dashboard, insights, settings, changelog)
+- `src/app/api/` — API routes (auth, calendar, checkin, push, widget, cron, changelog, feature-request)
 - `src/components/` — React components grouped by feature
-- `src/app/(app)/` — Auth-protected pages with bottom nav
+- `src/app/(app)/` — Auth-protected pages with bottom nav + changelog modal
+- `data/public/` — Static reference data (GTFS schedules, station lists)
+- `docs/` — Product, data collection, security, deployment, changelog docs
 
 ## Conventions
 - Auth-gate all server actions with `await auth()`
@@ -39,11 +41,14 @@ bun run db:generate      # Generate migrations
 - All timestamps in UTC via Drizzle `{ mode: "date" }`
 - Time strings as "HH:MM" in settings
 - Direction: "outbound" | "return"
-- Commute mode: "subway" | "ferry" (ferry infrastructure ready, not active)
+- Commute mode: "subway" | "path" | "bus" | "commuter_rail" | "ferry"
 - Commute days: "weekdays" | "all" | "custom" (per-user in DB)
-- Route IDs: "JSQ-WTC", "JSQ-33", "HOB-WTC", "HOB-33"
+- Transit agencies: PATH, MTA, NJT, MNRR, LIRR, NYCFERRY
+- Route IDs: normalized as "AGENCY:ROUTE" (e.g. "PATH:JSQ-WTC", "MTA:4")
 - API responses: `NextResponse.json()`
 - Fire-and-forget DB writes: `.catch(() => {})`
+- External fetches: use `resilientFetch()` from `src/lib/resilient-fetch.ts`
+- Logging: use `log.info/warn/error()` from `src/lib/logger.ts`
 
 ## Onboarding
 - First login → `/onboarding` (5-step wizard)
@@ -75,8 +80,13 @@ bun run db:generate      # Generate migrations
 - **Schema**: `bunx drizzle-kit push` after schema changes
 - **Runbook**: `docs/DEPLOY_RUNBOOK.md`
 
-## Product UX
-- **Mobile-first**: any new page/flow must be designed and validated for phone viewport first
+## Product (V3)
+- **Tri-state commute**: NY/NJ/CT metro area office workers
+- **Multi-modal**: PATH, subway, bus, NJ Transit, Metro-North, LIRR, ferry
+- **Per-user profiles**: home area, office, preferred modes, risk tolerance, reliability pref
+- **Data-first**: collect schedule/status data before building UX on it
+- **Changelog**: modal shows unseen changes on login; `/changelog` page for history
+- **Mobile-first**: every page/flow designed and tested for phone viewport
 
 ## Self-Judgement Protocol (for Claude sessions)
 Before each commit or "complete" claim, emit:
