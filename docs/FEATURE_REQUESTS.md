@@ -1,55 +1,43 @@
 # Feature Requests
 
+## Flow
+
+User submits via `/feature-request` page → API creates GitHub issue directly → returns issue link.
+
+No DB table — issues live on GitHub only.
+
 ## API
 
-### Submit a request
 ```
 POST /api/feature-request
 Authorization: session cookie
 Body: { "title": "...", "description": "...", "category": "general" }
+Response: { "ok": true, "issueNumber": 1, "issueUrl": "https://github.com/..." }
 ```
 
-### List my requests
-```
-GET /api/feature-request
-Authorization: session cookie
-```
+## UI
 
-## GitHub Issue Auto-Filing
+Phone-first form at `/feature-request` (linked from Settings):
+- Category selector (chips)
+- Title input (3–200 chars)
+- Description textarea (10–2000 chars)
+- Success: shows GitHub issue link
+- Error: clear error message
 
-When enabled, each feature request is automatically filed as a GitHub issue.
+## Env Vars
 
-### Env vars
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `AUTO_FILE_GH_ISSUES` | No | Set to "true" to enable |
-| `GITHUB_TOKEN` | If auto-filing | Fine-grained PAT with `issues:write` |
-| `GITHUB_OWNER` | If auto-filing | Repository owner (e.g. "ruilab") |
-| `GITHUB_REPO` | If auto-filing | Repository name (e.g. "commute-dashboard") |
+| `GITHUB_TOKEN` | Yes | PAT with `issues:write` on the target repo |
+| `GITHUB_OWNER` | No | Default: "ruilab" |
+| `GITHUB_REPO` | No | Default: "commute-dashboard" |
 
-### Behavior
-- If enabled + all vars set: creates issue on submission, stores issue number
-- If disabled or missing vars: request saved to DB only, `githubSyncStatus = "pending"`
-- If GitHub API fails: request saved, `githubSyncStatus = "failed"` with error message
-- Idempotent: duplicate submissions (same fingerprint) return existing request
+Note: `AUTO_FILE_GH_ISSUES` is no longer needed. If `GITHUB_TOKEN` is set, issues are filed. If not, API returns 503.
 
-### Abuse Controls
+## Abuse Controls
+
 - Auth required (session cookie)
-- Rate limited: 5 requests per bucket, slow refill (1 per 50s)
+- Rate limited: 5 per bucket, 1 refill per 50s
 - Origin checking in production
-- Fingerprint deduplication (hash of title + description)
-- Title min 3 chars, description min 10 chars
-
-## Schema: `feature_requests`
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| userId | text | FK to users |
-| title | text | Request title |
-| description | text | Request body |
-| category | text | "general" / custom |
-| githubIssueNumber | integer | Linked issue # (null if not synced) |
-| githubSyncStatus | text | "pending" / "synced" / "failed" |
-| githubSyncError | text | Error message if failed |
-| fingerprint | text | Dedupe hash |
-| createdAt | timestamp | When submitted |
+- Client + server validation (min/max lengths)
+- GitHub label: `feature-request`

@@ -292,32 +292,7 @@ export const rateLimitBuckets = pgTable("rate_limit_buckets", {
   lastRefill: timestamp("last_refill", { mode: "date" }).defaultNow().notNull(),
 });
 
-// ─── v3: commute mode + onboarding + feature requests ────────────────────────
+// ─── v3: commute mode types ───────────────────────────────────────────────────
 
 export type CommuteMode = "subway" | "ferry";
 export type CommuteDays = "weekdays" | "all" | "custom";
-
-export const featureRequests = pgTable(
-  "feature_requests",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    description: text("description").notNull(),
-    category: text("category").default("general").notNull(),
-    githubIssueNumber: integer("github_issue_number"),
-    githubSyncStatus: text("github_sync_status")
-      .$type<"pending" | "synced" | "failed">()
-      .default("pending")
-      .notNull(),
-    githubSyncError: text("github_sync_error"),
-    fingerprint: text("fingerprint"),
-    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
-  },
-  (t) => [
-    index("idx_feature_user").on(t.userId, t.createdAt),
-    index("idx_feature_fingerprint").on(t.fingerprint),
-  ]
-);
