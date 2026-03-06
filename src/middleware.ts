@@ -12,7 +12,8 @@ export default auth((req) => {
     pathname.startsWith("/icons") ||
     pathname === "/manifest.json" ||
     pathname === "/favicon.ico" ||
-    pathname === "/offline"
+    pathname === "/offline" ||
+    pathname === "/api/cron" // Protected by CRON_SECRET, not session
   ) {
     return NextResponse.next();
   }
