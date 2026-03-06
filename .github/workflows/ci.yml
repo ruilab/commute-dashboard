@@ -22,10 +22,10 @@ jobs:
       - name: Data boundary check
         run: bash scripts/check-data-boundary.sh
 
-      - name: Secret scanning (betterleaks)
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/betterleaks/betterleaks/main/install.sh | bash -s -- -d /usr/local/bin
-          betterleaks dir . --no-banner
+      - name: Secret scanning (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: bun run lint
 
