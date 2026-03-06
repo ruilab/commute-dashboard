@@ -66,6 +66,14 @@ export default async function SettingsPage() {
         </Link>
         <div className="border-t border-border" />
         <Link
+          href="/feature-request"
+          className="flex items-center justify-between text-sm"
+        >
+          <span>Feature Request</span>
+          <span className="text-muted-foreground">→</span>
+        </Link>
+        <div className="border-t border-border" />
+        <Link
           href="/onboarding?reset=1"
           className="flex items-center justify-between text-sm"
         >
