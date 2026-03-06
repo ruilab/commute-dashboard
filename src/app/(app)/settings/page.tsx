@@ -74,6 +74,14 @@ export default async function SettingsPage() {
         </Link>
         <div className="border-t border-border" />
         <Link
+          href="/changelog"
+          className="flex items-center justify-between text-sm"
+        >
+          <span>Changelog</span>
+          <span className="text-muted-foreground">→</span>
+        </Link>
+        <div className="border-t border-border" />
+        <Link
           href="/onboarding?reset=1"
           className="flex items-center justify-between text-sm"
         >
