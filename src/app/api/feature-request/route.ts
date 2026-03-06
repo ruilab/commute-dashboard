@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkOrigin } from "@/lib/api-guard";
+import { buildIssueTitle, buildIssueBody } from "@/lib/issue-format";
 import { NextResponse } from "next/server";
 
 /**
@@ -24,7 +25,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const body = await req.json();
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
   const title = (body.title || "").trim();
   const description = (body.description || "").trim();
   const category = body.category || "general";
@@ -50,6 +56,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Feature requests not configured" }, { status: 503 });
   }
 
+  const issueTitle = buildIssueTitle(title);
+  const issueBody = buildIssueBody({
+    title,
+    description,
+    category,
+    submittedBy: session.user.name || "user",
+  });
+
   const issueRes = await fetch(
     `https://api.github.com/repos/${ghOwner}/${ghRepo}/issues`,
     {
@@ -60,8 +74,8 @@ export async function POST(req: Request) {
         Accept: "application/vnd.github.v3+json",
       },
       body: JSON.stringify({
-        title: `[Feature Request] ${title}`,
-        body: `**Category:** ${category}\n\n${description}\n\n---\n*Submitted by ${session.user.name || "user"} via commute-dashboard*`,
+        title: issueTitle,
+        body: issueBody,
         labels: ["feature-request"],
       }),
     }

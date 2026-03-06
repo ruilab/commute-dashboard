@@ -1,13 +1,12 @@
 /**
  * Production environment validation.
  * Fails fast at startup if required env vars are missing.
- * Called from layout.tsx (server component) on first render.
  */
 
 interface EnvRequirement {
   key: string;
-  required: boolean; // required for app to function at all
-  requiredInProd: boolean; // required only in production
+  required: boolean;
+  requiredInProd: boolean;
   description: string;
 }
 
@@ -16,7 +15,6 @@ const ENV_CONTRACT: EnvRequirement[] = [
   { key: "AUTH_SECRET", required: true, requiredInProd: true, description: "Auth.js encryption secret" },
   { key: "AUTH_GITHUB_ID", required: true, requiredInProd: true, description: "GitHub OAuth client ID" },
   { key: "AUTH_GITHUB_SECRET", required: true, requiredInProd: true, description: "GitHub OAuth client secret" },
-  { key: "ALLOWED_GITHUB_USERS", required: true, requiredInProd: true, description: "Comma-separated GitHub usernames" },
   { key: "CRON_SECRET", required: false, requiredInProd: true, description: "Bearer token for /api/cron" },
 ];
 
@@ -42,9 +40,6 @@ export function validateEnv(): { valid: boolean; missing: string[] } {
   return { valid: missing.length === 0, missing };
 }
 
-/**
- * Get the app's public URL (for OAuth callbacks, absolute links, etc.)
- */
 export function getAppUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;

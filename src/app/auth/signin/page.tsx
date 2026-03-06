@@ -1,9 +1,21 @@
 import { signIn, auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { SignInForm } from "@/components/auth/signin-form";
 
 export default async function SignInPage() {
   const session = await auth();
   if (session) redirect("/");
+
+  const requireCode = !!process.env.SIGNUP_CODE;
+
+  async function handleSignIn(code?: string) {
+    "use server";
+    const expected = process.env.SIGNUP_CODE;
+    if (expected && code !== expected) {
+      throw new Error("Invalid signup code");
+    }
+    await signIn("github", { redirectTo: "/" });
+  }
 
   return (
     <div className="flex min-h-dvh items-center justify-center p-4">
@@ -14,22 +26,7 @@ export default async function SignInPage() {
             JSQ ↔ WTC · Personal commute optimizer
           </p>
         </div>
-        <form
-          action={async () => {
-            "use server";
-            await signIn("github", { redirectTo: "/" });
-          }}
-        >
-          <button
-            type="submit"
-            className="tap-target w-full rounded-lg bg-foreground px-4 py-3 font-medium text-background transition-opacity hover:opacity-90"
-          >
-            Sign in with GitHub
-          </button>
-        </form>
-        <p className="text-xs text-muted-foreground">
-          Access is restricted to authorized users.
-        </p>
+        <SignInForm requireCode={requireCode} onSignIn={handleSignIn} />
       </div>
     </div>
   );

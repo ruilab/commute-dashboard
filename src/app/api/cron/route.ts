@@ -15,6 +15,15 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { isCommuteDay } from "@/lib/commute-days";
 import type { CommuteDays } from "@/lib/db/schema";
 
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 /**
  * Cron endpoint for:
  * 1. Background data refresh (transit + weather snapshots)
@@ -33,8 +42,10 @@ export async function GET(req: Request) {
   }
 
   if (cronSecret) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const authHeader = req.headers.get("authorization") || "";
+    const expected = `Bearer ${cronSecret}`;
+    // Timing-safe comparison to prevent timing attacks
+    if (authHeader.length !== expected.length || !timingSafeEqual(authHeader, expected)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }

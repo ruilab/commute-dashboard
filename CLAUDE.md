@@ -18,6 +18,7 @@ bun run dev              # Dev server
 bun run build            # Production build (next build)
 bun run lint             # ESLint (direct eslint src/)
 bun run typecheck        # TypeScript check (tsc --noEmit)
+bun test tests/unit/     # Unit tests (bun:test)
 bun run test:e2e         # E2E tests (playwright)
 bun run db:push          # Push schema to database
 bun run db:generate      # Generate migrations
@@ -58,11 +59,13 @@ bun run db:generate      # Generate migrations
 
 ## Security
 - **Public repo**: all code/config/docs are publicly visible
+- **Never commit secrets/tokens**: no PATs, API keys, private keys, or real `.env` values in git history
 - **Secret scanning**: betterleaks in CI; run `betterleaks dir .` locally
 - **Data boundary**: `bash scripts/check-data-boundary.sh` before committing
+- **Private/user-specific data** must live in the database only; only public/reference datasets belong in repo files
 - **Write endpoints**: rate-limited + origin-checked in production
 - **Cron**: `CRON_SECRET` required in production; returns 503 if missing
-- **Auth**: GitHub OAuth only; `ALLOWED_GITHUB_USERS` gates access
+- **Auth**: GitHub OAuth with optional `SIGNUP_CODE` gate (code required before OAuth if env var set)
 - See `docs/SECURITY.md` for full threat model
 - See `docs/DATA_BOUNDARY.md` for data policy
 
@@ -71,6 +74,9 @@ bun run db:generate      # Generate migrations
 - **Deploy**: `git push origin main` (auto-deploys via GitHub integration)
 - **Schema**: `bunx drizzle-kit push` after schema changes
 - **Runbook**: `docs/DEPLOY_RUNBOOK.md`
+
+## Product UX
+- **Mobile-first**: any new page/flow must be designed and validated for phone viewport first
 
 ## Self-Judgement Protocol (for Claude sessions)
 Before each commit or "complete" claim, emit:
@@ -85,6 +91,7 @@ Hard rules:
 - Confidence < 60 with high risk → stop and re-scope
 - Every "complete" must cite `bun run build` or `bun run lint` output
 - Truth over plan: if evidence contradicts docs, update docs immediately
+- Update docs and `CLAUDE.md` in the same change when behavior, policy, or workflow expectations change
 
 ## Skills
 - Project-specific skills live in `skills/`
