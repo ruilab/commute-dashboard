@@ -22,6 +22,11 @@ jobs:
       - name: Data boundary check
         run: bash scripts/check-data-boundary.sh
 
+      - name: Secret scanning (betterleaks)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/betterleaks/betterleaks/main/install.sh | bash -s -- -d /usr/local/bin
+          betterleaks dir . --no-banner
+
       - run: bun run lint
 
       - run: bun run typecheck

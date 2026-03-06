@@ -22,7 +22,14 @@ import { checkRateLimit } from "@/lib/rate-limit";
  * Secured via CRON_SECRET header.
  */
 export async function GET(req: Request) {
+  // Cron authentication: CRON_SECRET required in production
   const cronSecret = process.env.CRON_SECRET;
+  const isProd = process.env.NODE_ENV === "production";
+
+  if (isProd && !cronSecret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
+
   if (cronSecret) {
     const authHeader = req.headers.get("authorization");
     if (authHeader !== `Bearer ${cronSecret}`) {

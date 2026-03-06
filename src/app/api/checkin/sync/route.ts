@@ -1,10 +1,14 @@
 import { auth } from "@/lib/auth";
 import { startSession, addEvent, addTag } from "@/lib/actions/commute";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkOrigin } from "@/lib/api-guard";
 import { NextResponse } from "next/server";
 import type { EventStep, Direction } from "@/lib/db/schema";
 
 export async function POST(req: Request) {
+  const originErr = checkOrigin(req);
+  if (originErr) return originErr;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

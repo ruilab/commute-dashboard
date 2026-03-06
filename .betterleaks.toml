@@ -1,0 +1,7 @@
+[allowlist]
+paths = [
+  '''.next/.*''',
+  '''node_modules/.*''',
+  '''bun\.lock''',
+  '''\.env\.example''',
+]

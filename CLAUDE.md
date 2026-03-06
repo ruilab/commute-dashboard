@@ -42,12 +42,21 @@ bun run db:generate      # Generate migrations
 - API responses: `NextResponse.json()`
 - Fire-and-forget DB writes: `.catch(() => {})`
 
-## Data Boundary Policy
-- **Public/reference data** (schedules, route configs): lives in code constants or `data/public/`
-- **User data** (sessions, settings, tokens): lives in DB only, never committed
-- **Private/local data** (`.env`, DB exports, logs): gitignored, never committed
-- Run `bash scripts/check-data-boundary.sh` before committing to verify
-- See `docs/DATA_BOUNDARY.md` for full policy
+## Security
+- **Public repo**: all code/config/docs are publicly visible
+- **Secret scanning**: betterleaks in CI; run `betterleaks dir .` locally
+- **Data boundary**: `bash scripts/check-data-boundary.sh` before committing
+- **Write endpoints**: rate-limited + origin-checked in production
+- **Cron**: `CRON_SECRET` required in production; returns 503 if missing
+- **Auth**: GitHub OAuth only; `ALLOWED_GITHUB_USERS` gates access
+- See `docs/SECURITY.md` for full threat model
+- See `docs/DATA_BOUNDARY.md` for data policy
+
+## Deployment
+- **Platform**: Vercel (Next.js native, Vercel Postgres, built-in cron)
+- **Deploy**: `git push origin main` (auto-deploys via GitHub integration)
+- **Schema**: `bunx drizzle-kit push` after schema changes
+- **Runbook**: `docs/DEPLOY_RUNBOOK.md`
 
 ## Self-Judgement Protocol (for Claude sessions)
 Before each commit or "complete" claim, emit:
