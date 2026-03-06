@@ -115,15 +115,22 @@ Systematic execution of 10 enhancements to the commute dashboard, ordered by imp
 - [x] 4.1 Multi-Route Support
 - [x] 4.2 Widget / Quick Glance
 
-## Additional TODOs Identified During Execution
+## Additional TODOs — Completed in V2.5
 
-- [ ] Add actual GTFS-RT protobuf parsing (currently relies on PANYNJ JSON feed)
-- [ ] Cron job for proactive push notifications (currently only preference storage)
-- [ ] Calendar disconnect / re-auth flow in settings
-- [ ] Background data refresh (currently on-demand only)
-- [ ] E2E tests for check-in flow
-- [ ] Rate limiting on API endpoints
-- [ ] Correlation engine: temperature and wind speed bucketing
-- [ ] Streak persistence across sessions (currently computed on-the-fly)
-- [ ] Multi-route: allow multiple active routes simultaneously
-- [ ] Widget: auto-refresh meta tag for periodic reload
+- [x] GTFS-RT protobuf ingestion path (JSON fallback; binary protobuf stub for future protobufjs dep)
+- [x] Cron job for proactive push notifications (leave reminders, service/weather alerts, dedup)
+- [x] Calendar disconnect / re-auth flow in settings
+- [x] Background data refresh (cron endpoint persists transit + weather snapshots)
+- [x] E2E tests for check-in flow (Playwright; auth-gated tests need test DB for full coverage)
+- [x] Rate limiting on API endpoints (in-memory token-bucket)
+- [x] Correlation engine: temperature and wind speed bucketing
+- [x] Streak persistence (streak_snapshots table, 6h cache)
+- [x] Multi-route: simultaneous active routes (JSONB array, multi-select UI)
+- [x] Widget: auto-refresh via client-side router.refresh() polling
+
+## Residual Gaps (post-V2.5)
+
+- [ ] Full binary GTFS-RT protobuf parsing (needs protobufjs dependency; currently JSON-only)
+- [ ] E2E test auth bypass for CI (needs test database + session mock)
+- [ ] Route-filtered insights (schema ready; query filtering not yet wired)
+- [ ] Email notification channel (Resend/SendGrid integration)

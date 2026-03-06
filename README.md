@@ -75,7 +75,7 @@ Output: best band + 2 fallbacks + confidence (high/medium/low) + explanation.
 ```bash
 git clone https://github.com/ruilab/commute-dashboard.git
 cd commute-dashboard
-npm install
+bun install
 ```
 
 ### 2. Configure environment
@@ -86,20 +86,20 @@ cp .env.example .env
 
 Fill in:
 - `POSTGRES_URL` — Your Postgres connection string
-- `AUTH_SECRET` — Generate with `npx auth secret`
+- `AUTH_SECRET` — Generate with `bunx auth secret`
 - `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` — From [GitHub OAuth app settings](https://github.com/settings/developers)
 - `ALLOWED_GITHUB_USERS` — Your GitHub username
 
 ### 3. Push database schema
 
 ```bash
-npm run db:push
+bun run db:push
 ```
 
 ### 4. Run dev server
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000).
@@ -119,6 +119,8 @@ Visit [http://localhost:3000](http://localhost:3000).
 | `VAPID_PUBLIC_KEY` | No | VAPID key for push notifications |
 | `VAPID_PRIVATE_KEY` | No | VAPID private key |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | No | Same as VAPID_PUBLIC_KEY (client-side) |
+| `GTFSRT_FEED_URL` | No | GTFS-RT feed URL for PATH train data |
+| `CRON_SECRET` | Prod | Bearer token to secure /api/cron endpoint |
 
 ## Vercel Deployment
 
@@ -155,30 +157,53 @@ The database schema will be applied via `db:push` — run it once after first de
 ### Limitations
 
 - PATH realtime data depends on PANYNJ API availability
-- No GTFS-RT integration yet (would improve headway estimates)
-- Weather affects walking comfort but doesn't predict transit delays
-- Historical data requires check-in usage to build baseline
+- GTFS-RT binary protobuf needs protobufjs for full support (JSON fallback works)
+- Weather correlation requires check-in history to produce meaningful insights
+- Calendar integration requires Google Cloud project setup
 
 ## Scripts
 
 ```bash
-npm run dev          # Development server
-npm run build        # Production build
-npm run lint         # ESLint
-npm run format       # Prettier
-npm run db:generate  # Generate Drizzle migrations
-npm run db:push      # Push schema to database
-npm run db:studio    # Drizzle Studio (DB browser)
+bun run dev          # Development server
+bun run build        # Production build
+bun run lint         # ESLint
+bun run typecheck    # TypeScript check
+bun run test         # E2E tests (Playwright)
+bun run format       # Prettier
+bun run db:generate  # Generate Drizzle migrations
+bun run db:push      # Push schema to database
+bun run db:studio    # Drizzle Studio (DB browser)
 ```
+
+## Cron Setup
+
+The app includes a cron endpoint at `/api/cron` that handles:
+- Background transit + weather snapshot refresh
+- Proactive push notifications (leave reminders, service/weather alerts)
+
+**Vercel**: Configured in `vercel.json` — runs every 10 min during commute hours.
+**Self-hosted**: Call `curl -H "Authorization: Bearer $CRON_SECRET" https://your-app/api/cron` from your scheduler.
+
+## Project-Specific Autonomous Skills
+
+The `skills/` directory contains 6 project-anchored skills that map to the exact files, tables, and APIs in this codebase:
+
+| Skill | Domain | Primary Anchor |
+|-------|--------|---------------|
+| `transit-data-pipeline` | PATH data ingestion | `src/lib/services/transit.ts` |
+| `recommendation-tuning` | Scoring + correlation | `src/lib/engine/recommend.ts` |
+| `checkin-lifecycle` | Session management | `src/lib/actions/commute.ts` |
+| `notification-system` | Push + cron + history | `src/lib/services/push.ts` |
+| `calendar-integration` | Google Calendar OAuth | `src/lib/services/calendar.ts` |
+| `schema-evolution` | Database schema | `src/lib/db/schema.ts` |
+
+See `skills/SKILL_GOVERNANCE.md` for evolution rules and `skills/PROJECT_ANCHORS.md` for the complete file mapping.
 
 ## Future Roadmap
 
-- GTFS-RT protobuf parsing for true real-time headway data
-- Cron-based proactive push notification triggers
-- Email digest: daily morning summary via Resend/SendGrid
+- Full binary GTFS-RT protobuf parsing (protobufjs)
+- Email digest via Resend/SendGrid
+- Route-filtered insights (schema ready, UI pending)
 - NJ Transit bus/rail integration
 - Apple Watch companion app
-- E2E test suite
-- Background data refresh via Vercel cron
-- Multi-route: allow multiple active routes simultaneously
 - ML-based recommendation model trained on personal history
