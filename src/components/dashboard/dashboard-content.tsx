@@ -73,16 +73,74 @@ export async function DashboardContent() {
             <span className="text-sm capitalize">{data.transit.status}</span>
           </div>
         </div>
+
         {data.transit.advisoryText && (
           <p className="mt-2 text-sm text-muted-foreground">
             {data.transit.advisoryText}
           </p>
         )}
-        {data.transit.headwayMin && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            ~{data.transit.headwayMin} min headway
-            {data.transit.isStale && " (data may be stale)"}
-          </p>
+
+        {/* Next arrivals */}
+        {data.transit.nextArrivals.length > 0 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto">
+            {data.transit.nextArrivals.slice(0, 3).map((arr, i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 rounded-lg bg-secondary px-2.5 py-1.5"
+              >
+                <p className="text-sm font-medium">
+                  {arr.arrivalMinutes <= 1
+                    ? "Now"
+                    : `${arr.arrivalMinutes} min`}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate max-w-20">
+                  {arr.destination || arr.lineName}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+          {data.transit.headwayMin && (
+            <span>
+              ~{data.transit.headwayMin} min headway
+              {data.transit.realHeadwayMin !== null && " (live)"}
+            </span>
+          )}
+          {data.transit.isWeekendSchedule && (
+            <span className="rounded bg-muted px-1.5 py-0.5">
+              Weekend sched
+            </span>
+          )}
+          {data.transit.isPlannedWork && (
+            <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
+              Planned work
+            </span>
+          )}
+          {data.transit.isStale && (
+            <span className="text-warning">Stale data</span>
+          )}
+        </div>
+
+        {/* Service alerts */}
+        {data.transit.serviceAlerts.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {data.transit.serviceAlerts.slice(0, 2).map((alert, i) => (
+              <div
+                key={i}
+                className={`rounded-lg px-3 py-2 text-xs ${
+                  alert.severity === "severe"
+                    ? "bg-danger/10 text-danger"
+                    : alert.severity === "warning"
+                      ? "bg-warning/10 text-warning"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {alert.description}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -111,6 +169,26 @@ export async function DashboardContent() {
             {data.weather.windSpeed > 5 && (
               <span>{Math.round(data.weather.windSpeed)} mph wind</span>
             )}
+          </div>
+        )}
+        {/* Hourly forecast ribbon */}
+        {data.weather.forecastHours.length > 0 && (
+          <div className="mt-3 flex gap-3 overflow-x-auto">
+            {data.weather.forecastHours.slice(0, 5).map((h) => (
+              <div key={h.hour} className="flex-shrink-0 text-center">
+                <p className="text-[10px] text-muted-foreground">
+                  {h.hour > 12 ? h.hour - 12 : h.hour}
+                  {h.hour >= 12 ? "p" : "a"}
+                </p>
+                <WeatherIcon condition={h.condition} />
+                <p className="text-xs">{Math.round(h.temperature)}°</p>
+                {h.precipProbability > 20 && (
+                  <p className="text-[10px] text-primary">
+                    {Math.round(h.precipProbability)}%
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -144,6 +222,8 @@ export async function DashboardContent() {
           minute: "2-digit",
           timeZone: "America/New_York",
         })}
+        {" · "}
+        <span className="capitalize">{data.transit.source.replace("-", " ")}</span>
       </p>
     </div>
   );

@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { commuteSessions, commuteTags } from "@/lib/db/schema";
 import { eq, and, gte, desc, sql } from "drizzle-orm";
+import { analyzeCorrelations } from "@/lib/engine/correlation";
+import { getStreakData } from "@/lib/engine/streaks";
 
 export async function getInsightsData() {
   const session = await auth();
@@ -30,19 +32,18 @@ export async function getInsightsData() {
     .orderBy(desc(commuteSessions.startedAt));
 
   // Get all tags
-  const allTags = await db
-    .select()
-    .from(commuteTags)
-    .where(
-      sql`${commuteTags.sessionId} IN (${
-        allSessions.length > 0
-          ? sql.join(
+  const allTags =
+    allSessions.length > 0
+      ? await db
+          .select()
+          .from(commuteTags)
+          .where(
+            sql`${commuteTags.sessionId} IN (${sql.join(
               allSessions.map((s) => sql`${s.id}`),
               sql`, `
-            )
-          : sql`NULL`
-      })`
-    );
+            )})`
+          )
+      : [];
 
   // Compute stats
   const outbound = allSessions.filter((s) => s.direction === "outbound");
@@ -84,8 +85,7 @@ export async function getInsightsData() {
     for (const s of sessions) {
       if (!s.totalDurationMin) continue;
       const hour = new Date(s.startedAt).getHours();
-      const minute =
-        Math.floor(new Date(s.startedAt).getMinutes() / 10) * 10;
+      const minute = Math.floor(new Date(s.startedAt).getMinutes() / 10) * 10;
       const label = `${hour > 12 ? hour - 12 : hour}:${minute.toString().padStart(2, "0")} ${hour >= 12 ? "PM" : "AM"}`;
       if (!bands[label]) bands[label] = [];
       bands[label].push(s.totalDurationMin);
@@ -110,7 +110,11 @@ export async function getInsightsData() {
   }
 
   // Trend data: daily averages for the week
-  const dailyAvg: { date: string; outbound: number | null; returnTrip: number | null }[] = [];
+  const dailyAvg: {
+    date: string;
+    outbound: number | null;
+    returnTrip: number | null;
+  }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -137,7 +141,10 @@ export async function getInsightsData() {
       outbound:
         dayOutbound.length > 0
           ? Math.round(
-              (dayOutbound.reduce((a, s) => a + (s.totalDurationMin || 0), 0) /
+              (dayOutbound.reduce(
+                (a, s) => a + (s.totalDurationMin || 0),
+                0
+              ) /
                 dayOutbound.length) *
                 10
             ) / 10
@@ -145,13 +152,22 @@ export async function getInsightsData() {
       returnTrip:
         dayReturn.length > 0
           ? Math.round(
-              (dayReturn.reduce((a, s) => a + (s.totalDurationMin || 0), 0) /
+              (dayReturn.reduce(
+                (a, s) => a + (s.totalDurationMin || 0),
+                0
+              ) /
                 dayReturn.length) *
                 10
             ) / 10
           : null,
     });
   }
+
+  // v2: Correlation analysis and streaks (parallel)
+  const [correlations, streaks] = await Promise.all([
+    analyzeCorrelations(session.user.id, 60).catch(() => null),
+    getStreakData(session.user.id).catch(() => null),
+  ]);
 
   return {
     overall: computeStats(allSessions),
@@ -162,5 +178,31 @@ export async function getInsightsData() {
     returnBands: bandStats(returnTrips).slice(0, 5),
     tagCounts,
     dailyAvg,
+    correlations: correlations
+      ? {
+          insights: correlations.insights.map((i) => ({
+            type: i.type,
+            title: i.title,
+            description: i.description,
+            magnitude: i.magnitude,
+            sampleSize: i.sampleSize,
+          })),
+          weatherBuckets: correlations.weatherBuckets,
+          learnedPenalties: correlations.learnedPenalties,
+          dataPoints: correlations.dataPoints,
+        }
+      : null,
+    streaks: streaks
+      ? {
+          checkinStreak: streaks.checkinStreak,
+          longestCheckinStreak: streaks.longestCheckinStreak,
+          onTimeStreak: streaks.onTimeStreak,
+          fastestOutbound: streaks.fastestOutbound,
+          fastestReturn: streaks.fastestReturn,
+          thisWeek: streaks.thisWeek,
+          thisMonth: streaks.thisMonth,
+          totalCommutes: streaks.totalCommutes,
+        }
+      : null,
   };
 }

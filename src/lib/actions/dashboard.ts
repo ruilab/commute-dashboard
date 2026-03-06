@@ -62,6 +62,14 @@ export async function getDashboardData() {
       headwayMin: transit.headwayMin,
       isStale: transit.isStale,
       source: transit.source,
+      nextArrivals: transit.nextArrivals,
+      serviceAlerts: transit.serviceAlerts.map((a) => ({
+        description: a.description,
+        severity: a.severity,
+      })),
+      isWeekendSchedule: transit.isWeekendSchedule,
+      isPlannedWork: transit.isPlannedWork,
+      realHeadwayMin: transit.realHeadwayMin,
     },
     weather: {
       temperature: weather.temperature,
