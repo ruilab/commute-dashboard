@@ -11,7 +11,7 @@
 
 import { db } from "@/lib/db";
 import { commuteSessions } from "@/lib/db/schema";
-import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface StreakData {
   checkinStreak: number; // consecutive weekdays with check-in

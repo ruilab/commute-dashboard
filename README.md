@@ -1,6 +1,6 @@
 # Commute Dashboard
 
-Personal commute optimizer for the **JSQ ↔ WTC** PATH route. A mobile-first PWA that helps determine the best time to leave for work and return home, combining real-time transit status, weather forecasts, and personal commute history.
+Personal commute optimizer for PATH train routes (JSQ ↔ WTC, JSQ ↔ 33rd, HOB ↔ WTC, HOB ↔ 33rd). A mobile-first PWA that helps determine the best time to leave for work and return home, combining real-time transit status, weather forecasts, calendar integration, and personal commute history.
 
 ## What it does
 
@@ -12,11 +12,15 @@ The dashboard shows recommended departure windows with confidence levels and pla
 
 ## Features
 
-- **Dashboard** — Departure recommendations, PATH status, weather summary
-- **Check-in** — Tap-through commute tracking (start → station → train → arrive)
+- **Dashboard** — Departure recommendations, PATH status with live arrivals, weather + hourly forecast, calendar context
+- **Check-in** — Tap-through commute tracking (start → station → train → arrive) with offline support
 - **History** — Recent commutes with durations, events, and delay tags
-- **Insights** — Analytics: averages, fastest bands, trends, issue frequency
-- **Settings** — Walking times, decision windows
+- **Insights** — Streaks & records, weather-delay correlations, learned patterns, fastest departure bands, weekly trends
+- **Settings** — Route selection, walking times, decision windows, push notification preferences, calendar integration
+- **Widget** — Minimal single-card view (`/widget`) for phone home screen shortcuts
+- **API** — JSON endpoint (`/api/widget`) for automation consumption
+- **Offline** — Service worker caching, IndexedDB queue for check-ins, background sync
+- **Push** — Web Push notifications for departure reminders and service alerts
 
 ## Architecture
 
@@ -24,9 +28,12 @@ The dashboard shows recommended departure windows with confidence levels and pla
 Next.js 16 (App Router) + TypeScript + Tailwind CSS
 ├── Auth: Auth.js + GitHub OAuth (single-user allowlist)
 ├── Database: Vercel Postgres + Drizzle ORM
-├── Transit: PATH alerts API + schedule fallback
+├── Transit: PATH realtime + alerts + schedule (multi-source)
 ├── Weather: Open-Meteo (free, no key needed)
-├── Engine: Deterministic rules-based recommendation
+├── Calendar: Google Calendar OAuth (optional)
+├── Engine: Rules-based recommendation + correlation analysis + streaks
+├── Offline: Service worker + IndexedDB + background sync
+├── Push: Web Push via VAPID
 └── Deploy: Vercel
 ```
 
@@ -107,6 +114,11 @@ Visit [http://localhost:3000](http://localhost:3000).
 | `AUTH_GITHUB_SECRET` | Yes | GitHub OAuth app client secret |
 | `ALLOWED_GITHUB_USERS` | Yes | Comma-separated GitHub usernames |
 | `NEXT_PUBLIC_APP_URL` | No | App URL (defaults to localhost) |
+| `GOOGLE_CALENDAR_CLIENT_ID` | No | Google OAuth client ID for calendar |
+| `GOOGLE_CALENDAR_CLIENT_SECRET` | No | Google OAuth client secret |
+| `VAPID_PUBLIC_KEY` | No | VAPID key for push notifications |
+| `VAPID_PRIVATE_KEY` | No | VAPID private key |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | No | Same as VAPID_PUBLIC_KEY (client-side) |
 
 ## Vercel Deployment
 
@@ -161,11 +173,12 @@ npm run db:studio    # Drizzle Studio (DB browser)
 
 ## Future Roadmap
 
-- GTFS-RT integration for real headway data
-- Push notifications (web push / email)
-- Calendar integration for meeting-aware recommendations
-- Historical weather correlation with trip duration
-- Multi-route support
-- Commute streak / gamification
-- Apple Watch / widget integration
-- Offline-first with background sync
+- GTFS-RT protobuf parsing for true real-time headway data
+- Cron-based proactive push notification triggers
+- Email digest: daily morning summary via Resend/SendGrid
+- NJ Transit bus/rail integration
+- Apple Watch companion app
+- E2E test suite
+- Background data refresh via Vercel cron
+- Multi-route: allow multiple active routes simultaneously
+- ML-based recommendation model trained on personal history

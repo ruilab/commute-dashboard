@@ -104,13 +104,26 @@ Systematic execution of 10 enhancements to the commute dashboard, ordered by imp
 
 ## Status Tracking
 
-- [ ] 1.1 GTFS-RT Integration
-- [ ] 1.3 Better PATH Data
-- [ ] 1.2 Weather-Delay Correlation
-- [ ] 3.2 Commute Streaks
-- [ ] 3.3 Offline Sync
-- [ ] 2.1 Web Push Notifications
-- [ ] 2.2 Notification Preferences
-- [ ] 3.1 Calendar Integration
-- [ ] 4.1 Multi-Route Support
-- [ ] 4.2 Widget / Quick Glance
+- [x] 1.1 GTFS-RT Integration
+- [x] 1.3 Better PATH Data
+- [x] 1.2 Weather-Delay Correlation
+- [x] 3.2 Commute Streaks
+- [x] 3.3 Offline Sync
+- [x] 2.1 Web Push Notifications
+- [x] 2.2 Notification Preferences
+- [x] 3.1 Calendar Integration
+- [x] 4.1 Multi-Route Support
+- [x] 4.2 Widget / Quick Glance
+
+## Additional TODOs Identified During Execution
+
+- [ ] Add actual GTFS-RT protobuf parsing (currently relies on PANYNJ JSON feed)
+- [ ] Cron job for proactive push notifications (currently only preference storage)
+- [ ] Calendar disconnect / re-auth flow in settings
+- [ ] Background data refresh (currently on-demand only)
+- [ ] E2E tests for check-in flow
+- [ ] Rate limiting on API endpoints
+- [ ] Correlation engine: temperature and wind speed bucketing
+- [ ] Streak persistence across sessions (currently computed on-the-fly)
+- [ ] Multi-route: allow multiple active routes simultaneously
+- [ ] Widget: auto-refresh meta tag for periodic reload

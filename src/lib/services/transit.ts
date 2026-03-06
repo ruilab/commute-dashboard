@@ -110,15 +110,12 @@ function isHoliday(): boolean {
   const now = new Date();
   const month = now.getMonth() + 1;
   const date = now.getDate();
-  const day = now.getDay();
 
-  // New Year's Day, MLK Day (3rd Mon Jan), Presidents Day (3rd Mon Feb),
-  // Memorial Day (last Mon May), July 4th, Labor Day (1st Mon Sep),
-  // Thanksgiving (4th Thu Nov), Christmas
+  // Major US holidays where PATH runs weekend schedule
   const holidays = [
-    month === 1 && date === 1,
-    month === 7 && date === 4,
-    month === 12 && date === 25,
+    month === 1 && date === 1,  // New Year's Day
+    month === 7 && date === 4,  // July 4th
+    month === 12 && date === 25, // Christmas
   ];
   return holidays.some(Boolean);
 }
