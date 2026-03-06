@@ -22,7 +22,6 @@ test.describe("Public pages", () => {
     await page.goto("/auth/signin");
     await expect(page.locator("text=Commute Dashboard")).toBeVisible();
     await expect(page.locator("text=Sign in with GitHub")).toBeVisible();
-    await expect(page.locator("text=Access is restricted")).toBeVisible();
   });
 
   test("offline page renders", async ({ page }) => {

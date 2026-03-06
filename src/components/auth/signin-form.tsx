@@ -52,7 +52,7 @@ export function SignInForm({ requireCode, onSignIn }: Props) {
 
       <p className="text-xs text-muted-foreground">
         {requireCode
-          ? "Enter the signup code to continue with GitHub sign-in."
+          ? "Need a code? Reach out to @chenrui333 on GitHub."
           : "Sign in with your GitHub account to get started."}
       </p>
     </div>

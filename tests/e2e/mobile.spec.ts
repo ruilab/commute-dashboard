@@ -12,8 +12,8 @@ test.describe("Mobile UX — public pages", () => {
     await page.goto("/auth/signin");
     await expect(page.locator("text=Commute Dashboard")).toBeVisible();
 
-    // Button should be tappable (min 48px height)
-    const button = page.locator("button[type=submit]");
+    // Button should be tappable (min 44px height)
+    const button = page.locator("text=Sign in with GitHub");
     await expect(button).toBeVisible();
     const box = await button.boundingBox();
     expect(box).toBeTruthy();
