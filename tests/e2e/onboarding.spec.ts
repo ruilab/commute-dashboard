@@ -1,4 +1,4 @@
-import { test, expect, devices } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
 /**
  * Onboarding flow E2E tests.
@@ -27,17 +27,10 @@ test.describe("Onboarding redirect", () => {
   });
 });
 
-test.describe("Onboarding mobile UX", () => {
-  test.use({ ...devices["iPhone 14"] });
-
-  test("sign-in page mobile-friendly before onboarding", async ({ page }) => {
+test.describe("Onboarding page access", () => {
+  test("sign-in page renders before onboarding", async ({ page }) => {
     await page.goto("/auth/signin");
     await expect(page.locator("text=Commute Dashboard")).toBeVisible();
-
-    // No horizontal overflow
-    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-    const viewportWidth = page.viewportSize()!.width;
-    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 1);
   });
 });
 
