@@ -68,6 +68,7 @@ interface EngineInput {
   historical: HistoricalStats | null;
   windowStart: string; // "08:30"
   windowEnd: string; // "10:00"
+  baseTrainTimeMin?: number; // Override per-route (default 13)
 }
 
 const BAND_INTERVAL_MIN = 10; // Evaluate every 10 minutes
@@ -124,7 +125,8 @@ function scoreBand(
   minute: number,
   input: EngineInput
 ): DepartureBand {
-  const { direction, transit, weather, walking, historical } = input;
+  const { direction, transit, weather, walking, historical, baseTrainTimeMin } = input;
+  const trainTime = baseTrainTimeMin ?? BASE_TRAIN_TIME;
 
   const transitSeverity = getTransitSeverity(transit);
   const weatherPenalty = getWeatherPenalty(weather);
@@ -154,14 +156,14 @@ function scoreBand(
   let historicalAdj = 0;
   if (historical?.medianByBand[key] && historical.sampleCount >= 3) {
     const baseEstimate =
-      walkBefore + waitTime + BASE_TRAIN_TIME + walkAfter;
+      walkBefore + waitTime + trainTime + walkAfter;
     historicalAdj = historical.medianByBand[key] - baseEstimate;
   }
 
   const estimatedDoorToDoor =
     walkBefore +
     waitTime +
-    BASE_TRAIN_TIME +
+    trainTime +
     walkAfter +
     delayPenaltyMin +
     weatherWalkPenalty +

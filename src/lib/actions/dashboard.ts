@@ -1,6 +1,6 @@
 "use server";
 
-import { getTransitStatus } from "@/lib/services/transit";
+import { getTransitStatus, getRouteConfig } from "@/lib/services/transit";
 import { getWeather } from "@/lib/services/weather";
 import { getCalendarContext } from "@/lib/services/calendar";
 import { generateRecommendation } from "@/lib/engine/recommend";
@@ -19,15 +19,19 @@ export async function getDashboardData() {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const [transit, weather, settings, outboundStats, returnStats, calendar] =
+  const settingsData = await getSettings();
+  const activeRoute = settingsData?.activeRoute ?? "JSQ-WTC";
+  const routeConfig = getRouteConfig(activeRoute);
+
+  const [transit, weather, outboundStats, returnStats, calendar] =
     await Promise.all([
-      getTransitStatus(),
+      getTransitStatus(activeRoute),
       getWeather(),
-      getSettings(),
       getHistoricalStats("outbound"),
       getHistoricalStats("return"),
       getCalendarContext(session.user.id).catch(() => null),
     ]);
+  const settings = settingsData;
 
   const walking = {
     homeToJsq: settings?.walkHomeToJsq ?? 8,
@@ -61,6 +65,7 @@ export async function getDashboardData() {
     historical: outboundStats,
     windowStart: settings?.morningWindowStart ?? "08:30",
     windowEnd: morningWindowEnd,
+    baseTrainTimeMin: routeConfig.baseTrainTimeMin,
   });
 
   const eveningRec = generateRecommendation({
@@ -71,6 +76,7 @@ export async function getDashboardData() {
     historical: returnStats,
     windowStart: settings?.eveningWindowStart ?? "19:00",
     windowEnd: settings?.eveningWindowEnd ?? "21:00",
+    baseTrainTimeMin: routeConfig.baseTrainTimeMin,
   });
 
   // Persist snapshots (fire and forget)
