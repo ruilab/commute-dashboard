@@ -14,6 +14,7 @@
 
 import { db } from "@/lib/db";
 import { calendarConnections } from "@/lib/db/schema";
+import { resilientFetch } from "@/lib/resilient-fetch";
 import { eq } from "drizzle-orm";
 
 export interface CalendarEvent {
@@ -140,9 +141,9 @@ async function fetchTodayEvents(
   url.searchParams.set("orderBy", "startTime");
   url.searchParams.set("maxResults", "20");
 
-  const res = await fetch(url.toString(), {
+  const res = await resilientFetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` },
-    signal: AbortSignal.timeout(5000),
+    label: "google-calendar-events",
   });
 
   if (!res.ok) return [];
@@ -177,7 +178,7 @@ async function refreshGoogleToken(
   if (!clientId || !clientSecret) return null;
 
   try {
-    const res = await fetch("https://oauth2.googleapis.com/token", {
+    const res = await resilientFetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -186,6 +187,7 @@ async function refreshGoogleToken(
         refresh_token: refreshToken,
         grant_type: "refresh_token",
       }),
+      label: "google-token-refresh",
     });
 
     if (!res.ok) return null;

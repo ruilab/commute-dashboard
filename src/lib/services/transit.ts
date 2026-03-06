@@ -10,6 +10,8 @@
  * a result, with `source` and `isStale` indicating data quality.
  */
 
+import { resilientFetch } from "@/lib/resilient-fetch";
+
 export type TransitStatus = "normal" | "delays" | "suspended" | "unknown";
 
 export interface TrainArrival {
@@ -153,9 +155,9 @@ async function fetchGtfsRt(
   if (!feedUrl) return null;
 
   try {
-    const res = await fetch(feedUrl, {
+    const res = await resilientFetch(feedUrl, {
       next: { revalidate: 30 },
-      signal: AbortSignal.timeout(5000),
+      label: "gtfs-rt-feed",
     });
 
     if (!res.ok) return null;
@@ -376,11 +378,11 @@ async function fetchPathRealtime(
 } | null> {
   try {
     // PATH realtime data from PANYNJ
-    const res = await fetch(
+    const res = await resilientFetch(
       "https://www.panynj.gov/bin/portauthority/ridepath.json",
       {
         next: { revalidate: 60 }, // Cache 1 min for realtime
-        signal: AbortSignal.timeout(5000),
+        label: "path-realtime",
       }
     );
 
@@ -466,11 +468,11 @@ async function fetchServiceAlerts(
   advisoryText: string | null;
 } | null> {
   try {
-    const res = await fetch(
+    const res = await resilientFetch(
       "https://www.panynj.gov/bin/portauthority/ridepath.json",
       {
         next: { revalidate: 120 },
-        signal: AbortSignal.timeout(5000),
+        label: "path-service-alerts",
       }
     );
 

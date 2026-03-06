@@ -6,6 +6,8 @@
  * Lat: 40.7178, Lon: -74.0431 (JSQ area)
  */
 
+import { resilientFetch } from "@/lib/resilient-fetch";
+
 export interface WeatherInfo {
   temperature: number; // Fahrenheit
   feelsLike: number;
@@ -73,9 +75,9 @@ export async function getWeather(): Promise<WeatherInfo> {
     url.searchParams.set("forecast_days", "1");
     url.searchParams.set("timezone", "America/New_York");
 
-    const res = await fetch(url.toString(), {
+    const res = await resilientFetch(url.toString(), {
       next: { revalidate: 600 }, // Cache 10 min
-      signal: AbortSignal.timeout(5000),
+      label: "open-meteo-weather",
     });
 
     if (!res.ok) throw new Error(`Weather API error: ${res.status}`);
