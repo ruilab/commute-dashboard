@@ -88,7 +88,25 @@ export const userSettings = pgTable("user_settings", {
   morningWindowEnd: text("morning_window_end").default("10:00").notNull(),
   eveningWindowStart: text("evening_window_start").default("19:00").notNull(),
   eveningWindowEnd: text("evening_window_end").default("21:00").notNull(),
+  // Notification preferences
+  pushEnabled: boolean("push_enabled").default(false).notNull(),
+  pushLeaveReminder: boolean("push_leave_reminder").default(true).notNull(),
+  pushServiceAlert: boolean("push_service_alert").default(true).notNull(),
+  pushWeatherAlert: boolean("push_weather_alert").default(false).notNull(),
+  // Route preference (for multi-route support)
+  activeRoute: text("active_route").default("JSQ-WTC").notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth_key").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 export type Direction = "outbound" | "return";

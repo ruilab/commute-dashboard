@@ -36,6 +36,11 @@ export async function updateSettings(data: {
   morningWindowEnd?: string;
   eveningWindowStart?: string;
   eveningWindowEnd?: string;
+  pushEnabled?: boolean;
+  pushLeaveReminder?: boolean;
+  pushServiceAlert?: boolean;
+  pushWeatherAlert?: boolean;
+  activeRoute?: string;
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");

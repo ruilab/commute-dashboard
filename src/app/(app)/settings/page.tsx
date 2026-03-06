@@ -28,6 +28,11 @@ export default async function SettingsPage() {
                   morningWindowEnd: settings.morningWindowEnd,
                   eveningWindowStart: settings.eveningWindowStart,
                   eveningWindowEnd: settings.eveningWindowEnd,
+                  pushEnabled: settings.pushEnabled,
+                  pushLeaveReminder: settings.pushLeaveReminder,
+                  pushServiceAlert: settings.pushServiceAlert,
+                  pushWeatherAlert: settings.pushWeatherAlert,
+                  activeRoute: settings.activeRoute,
                 }
               : null
           }
