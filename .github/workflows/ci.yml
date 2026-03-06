@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx next lint
+
+      - run: npx tsc --noEmit
+
+      - name: Build
+        run: npx next build
+        env:
+          # Dummy values for build-time validation
+          POSTGRES_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          AUTH_SECRET: build-secret-placeholder
+          AUTH_GITHUB_ID: dummy
+          AUTH_GITHUB_SECRET: dummy
