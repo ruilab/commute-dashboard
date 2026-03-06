@@ -292,7 +292,109 @@ export const rateLimitBuckets = pgTable("rate_limit_buckets", {
   lastRefill: timestamp("last_refill", { mode: "date" }).defaultNow().notNull(),
 });
 
-// ─── v3: commute mode types ───────────────────────────────────────────────────
+// ─── v3: types ───────────────────────────────────────────────────────────────
 
-export type CommuteMode = "subway" | "ferry";
+export type CommuteMode = "subway" | "path" | "bus" | "commuter_rail" | "ferry";
 export type CommuteDays = "weekdays" | "all" | "custom";
+export type RiskTolerance = "conservative" | "moderate" | "aggressive";
+export type ReliabilityPref = "fastest" | "most_reliable" | "least_crowded";
+
+// ─── v3: commuter profiles ───────────────────────────────────────────────────
+
+export const commuterProfiles = pgTable("commuter_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
+  homeArea: text("home_area"), // "Jersey City Heights", "Hoboken", "Astoria", "Stamford"
+  officeArea: text("office_area"), // "WTC", "Midtown", "FiDi"
+  preferredModes: jsonb("preferred_modes").$type<string[]>().default(["path"]).notNull(),
+  riskTolerance: text("risk_tolerance").$type<RiskTolerance>().default("moderate").notNull(),
+  reliabilityPref: text("reliability_pref").$type<ReliabilityPref>().default("fastest").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// ─── v3: transit reference data ──────────────────────────────────────────────
+
+export const transitRoutes = pgTable(
+  "transit_routes",
+  {
+    id: text("id").primaryKey(), // "PATH:JSQ-WTC", "MTA:4", "NJT:MOBO", "MNRR:HUDSON"
+    mode: text("mode").notNull(),
+    name: text("name").notNull(),
+    shortName: text("short_name"),
+    agency: text("agency").notNull(), // PATH, MTA, NJT, MNRR, LIRR, NYCFERRY
+    color: text("color"),
+    stations: jsonb("stations").$type<string[]>(),
+    baseTimeMin: integer("base_time_min"),
+    peakHeadwayMin: integer("peak_headway_min"),
+    offpeakHeadwayMin: integer("offpeak_headway_min"),
+    source: text("source").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("idx_routes_mode").on(t.mode), index("idx_routes_agency").on(t.agency)]
+);
+
+export const transitStations = pgTable(
+  "transit_stations",
+  {
+    id: text("id").primaryKey(), // "PATH:JSQ", "MTA:127", "MNRR:STAMFORD"
+    name: text("name").notNull(),
+    lat: real("lat"),
+    lon: real("lon"),
+    modes: jsonb("modes").$type<string[]>().default([]).notNull(),
+    agencies: jsonb("agencies").$type<string[]>().default([]).notNull(),
+    parentStation: text("parent_station"),
+    accessible: boolean("accessible").default(true).notNull(),
+    source: text("source").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("idx_stations_modes").on(t.modes)]
+);
+
+// ─── v3: data quality ────────────────────────────────────────────────────────
+
+export const dataIngestionLog = pgTable(
+  "data_ingestion_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    source: text("source").notNull(), // "gtfs:mta", "gtfs:njt", "gtfs:mnrr"
+    recordsIngested: integer("records_ingested").default(0).notNull(),
+    status: text("status").notNull(), // "success" | "partial" | "failed"
+    errorMessage: text("error_message"),
+    durationMs: integer("duration_ms"),
+    sourceHash: text("source_hash"),
+    ingestedAt: timestamp("ingested_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("idx_ingestion_source").on(t.source, t.ingestedAt)]
+);
+
+// ─── v3: changelog ───────────────────────────────────────────────────────────
+
+export const changelogEntries = pgTable(
+  "changelog_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    version: text("version").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    category: text("category").default("improvement").notNull(),
+    publishedAt: timestamp("published_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("idx_changelog_published").on(t.publishedAt)]
+);
+
+export const userChangelogSeen = pgTable(
+  "user_changelog_seen",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" })
+      .unique(),
+    lastSeenAt: timestamp("last_seen_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("idx_changelog_seen_user").on(t.userId)]
+);
