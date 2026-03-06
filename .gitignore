@@ -45,3 +45,6 @@ data/private/
 # playwright
 test-results/
 playwright-report/
+
+# local agent prompts
+/prompts/
