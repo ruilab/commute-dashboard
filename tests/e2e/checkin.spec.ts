@@ -1,36 +1,23 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * E2E tests for the check-in flow.
+ * E2E tests for the commute dashboard.
  *
- * NOTE: These tests require:
- * 1. A running dev server with a real/test database
- * 2. An authenticated session (bypassed in test env or via test cookie)
+ * Test strategy:
+ * - Public pages: tested directly (no auth needed)
+ * - Protected pages: tested via redirect behavior (verify auth wall works)
+ * - API endpoints: tested for correct 401 on unauthenticated requests
  *
- * For CI, these would need a test database and auth bypass.
- * For local dev, ensure you're signed in before running.
+ * For authenticated E2E testing against production:
+ * 1. Create a test GitHub account
+ * 2. Add it to ALLOWED_GITHUB_USERS
+ * 3. Set E2E_BASE_URL=https://your-app.vercel.app
+ * 4. Use Playwright's storageState to persist a login session
+ *
+ * See tests/e2e/README.md for full setup instructions.
  */
 
-test.describe("Check-in Flow", () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to check-in page
-    // In a real setup, we'd set an auth cookie here
-    await page.goto("/checkin");
-  });
-
-  test("displays start buttons when no active session", async ({ page }) => {
-    // Should show "To Office" and "To Home" buttons (or sign-in redirect)
-    const pageContent = await page.textContent("body");
-
-    // Either we see the checkin UI or we get redirected to sign-in
-    const isSignIn = pageContent?.includes("Sign in");
-    const isCheckin =
-      pageContent?.includes("To Office") ||
-      pageContent?.includes("No active commute");
-
-    expect(isSignIn || isCheckin).toBeTruthy();
-  });
-
+test.describe("Public pages", () => {
   test("sign-in page renders correctly", async ({ page }) => {
     await page.goto("/auth/signin");
     await expect(page.locator("text=Commute Dashboard")).toBeVisible();
@@ -38,23 +25,10 @@ test.describe("Check-in Flow", () => {
     await expect(page.locator("text=Access is restricted")).toBeVisible();
   });
 
-  test("widget page loads or redirects", async ({ page }) => {
-    await page.goto("/widget");
-    const content = await page.textContent("body");
-    // Either shows recommendation or redirects to sign-in
-    const hasContent =
-      content?.includes("Leave") ||
-      content?.includes("Sign in") ||
-      content?.includes("Unable to load");
-    expect(hasContent).toBeTruthy();
-  });
-
   test("offline page renders", async ({ page }) => {
     await page.goto("/offline");
     await expect(page.locator("text=You're Offline")).toBeVisible();
-    await expect(
-      page.locator("text=Check your internet connection")
-    ).toBeVisible();
+    await expect(page.locator("text=Check your internet connection")).toBeVisible();
   });
 
   test("auth error page renders", async ({ page }) => {
@@ -62,31 +36,71 @@ test.describe("Check-in Flow", () => {
     await expect(page.locator("text=Access Denied")).toBeVisible();
     await expect(page.locator("text=Try Again")).toBeVisible();
   });
+});
 
-  test("API widget endpoint returns JSON or 401", async ({ request }) => {
-    const response = await request.get("/api/widget");
-    // Without auth, should be 401
-    expect([200, 401]).toContain(response.status());
-    if (response.status() === 200) {
-      const data = await response.json();
-      expect(data).toHaveProperty("bestBand");
-      expect(data).toHaveProperty("confidence");
-      expect(data).toHaveProperty("generatedAt");
-    }
+test.describe("Auth wall (protected pages redirect)", () => {
+  test("dashboard redirects to sign-in", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForURL(/\/auth\/signin/);
+    expect(page.url()).toContain("/auth/signin");
   });
 
-  test("API cron endpoint returns JSON or 401", async ({ request }) => {
-    const response = await request.get("/api/cron");
-    // Without CRON_SECRET, should succeed (no secret = open)
-    // or 429 if rate limited
-    expect([200, 401, 429]).toContain(response.status());
+  test("checkin redirects to sign-in", async ({ page }) => {
+    await page.goto("/checkin");
+    await page.waitForURL(/\/auth\/signin/);
+    expect(page.url()).toContain("/auth/signin");
   });
 
-  test("checkin sync rejects invalid payload", async ({ request }) => {
-    const response = await request.post("/api/checkin/sync", {
-      data: { type: "invalid" },
+  test("history redirects to sign-in", async ({ page }) => {
+    await page.goto("/history");
+    await page.waitForURL(/\/auth\/signin/);
+    expect(page.url()).toContain("/auth/signin");
+  });
+
+  test("settings redirects to sign-in", async ({ page }) => {
+    await page.goto("/settings");
+    await page.waitForURL(/\/auth\/signin/);
+    expect(page.url()).toContain("/auth/signin");
+  });
+
+  test("widget redirects to sign-in", async ({ page }) => {
+    await page.goto("/widget");
+    await page.waitForURL(/\/auth\/signin/);
+    expect(page.url()).toContain("/auth/signin");
+  });
+});
+
+test.describe("API auth enforcement", () => {
+  test("widget API returns 401 without auth", async ({ request }) => {
+    const res = await request.get("/api/widget");
+    expect(res.status()).toBe(401);
+  });
+
+  test("checkin sync returns 401 without auth", async ({ request }) => {
+    const res = await request.post("/api/checkin/sync", {
+      data: { type: "start_session", payload: { direction: "outbound" } },
     });
-    // Without auth → 401, with auth → 400
-    expect([400, 401]).toContain(response.status());
+    expect(res.status()).toBe(401);
+  });
+
+  test("push subscribe returns 401 without auth", async ({ request }) => {
+    const res = await request.post("/api/push/subscribe", {
+      data: { endpoint: "test", keys: { p256dh: "a", auth: "b" } },
+    });
+    expect(res.status()).toBe(401);
+  });
+
+  test("calendar disconnect returns 401 without auth", async ({ request }) => {
+    const res = await request.post("/api/calendar/disconnect");
+    expect(res.status()).toBe(401);
+  });
+
+  test("cron endpoint accessible without auth (secured via CRON_SECRET in prod)", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/cron");
+    // Without CRON_SECRET env var, endpoint is open (by design for dev)
+    // Will likely 500 without DB, but should not 401
+    expect([200, 429, 500]).toContain(res.status());
   });
 });

@@ -11,7 +11,8 @@ export default auth((req) => {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/icons") ||
     pathname === "/manifest.json" ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    pathname === "/offline"
   ) {
     return NextResponse.next();
   }

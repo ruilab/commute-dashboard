@@ -1,7 +1,12 @@
 # Commute Dashboard — Project Instructions
 
+## Git Workflow
+- **Commit directly to main**. No feature branches or PRs.
+- Small logical commits with clear messages.
+- Do not push unless explicitly asked.
+
 ## Runtime
-- **Bun-first**: Use `bun install`, `bun run`, `bunx` everywhere
+- **Bun-first**: Use `bun install`, `bun run`, `bunx` everywhere. Never npm/npx.
 - **Next.js 16** with App Router, TypeScript strict mode
 - **Tailwind CSS v4** via `@tailwindcss/postcss`
 - **Drizzle ORM** with Vercel Postgres
@@ -13,7 +18,7 @@ bun run dev              # Dev server
 bun run build            # Production build (next build)
 bun run lint             # ESLint (direct eslint src/)
 bun run typecheck        # TypeScript check (tsc --noEmit)
-bun run test             # E2E tests (playwright)
+bun run test:e2e         # E2E tests (playwright)
 bun run db:push          # Push schema to database
 bun run db:generate      # Generate migrations
 ```
@@ -37,6 +42,13 @@ bun run db:generate      # Generate migrations
 - API responses: `NextResponse.json()`
 - Fire-and-forget DB writes: `.catch(() => {})`
 
+## Data Boundary Policy
+- **Public/reference data** (schedules, route configs): lives in code constants or `data/public/`
+- **User data** (sessions, settings, tokens): lives in DB only, never committed
+- **Private/local data** (`.env`, DB exports, logs): gitignored, never committed
+- Run `bash scripts/check-data-boundary.sh` before committing to verify
+- See `docs/DATA_BOUNDARY.md` for full policy
+
 ## Self-Judgement Protocol (for Claude sessions)
 Before each commit or "complete" claim, emit:
 - **Judgement**: what you believe is true
@@ -50,3 +62,8 @@ Hard rules:
 - Confidence < 60 with high risk → stop and re-scope
 - Every "complete" must cite `bun run build` or `bun run lint` output
 - Truth over plan: if evidence contradicts docs, update docs immediately
+
+## Skills
+- Project-specific skills live in `skills/`
+- Every major code change should update relevant skills
+- See `skills/SKILL_GOVERNANCE.md` for evolution rules

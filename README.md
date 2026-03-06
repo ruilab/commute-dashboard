@@ -66,16 +66,26 @@ Output: best band + 2 fallbacks + confidence (high/medium/low) + explanation.
 
 ### Prerequisites
 
-- Node.js 20+
+- [Bun](https://bun.sh) 1.3+ (or install via `brew bundle`)
+- Node.js 20+ (used by Next.js internally)
 - A Vercel Postgres database (or any PostgreSQL)
 - A GitHub OAuth app
+
+### 0. Install system deps (macOS)
+
+```bash
+brew bundle          # Installs bun + mise
+mise install         # Activates correct tool versions
+```
+
+Or manually: `curl -fsSL https://bun.sh/install | bash`
 
 ### 1. Clone and install
 
 ```bash
 git clone https://github.com/ruilab/commute-dashboard.git
 cd commute-dashboard
-bun install
+bun install --frozen-lockfile
 ```
 
 ### 2. Configure environment

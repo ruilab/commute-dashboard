@@ -35,11 +35,24 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429 });
   }
 
+  // Dry-run mode: fetch data but don't persist or send notifications
+  const url = new URL(req.url);
+  const isDryRun = url.searchParams.get("dry") === "1";
+  const startTime = Date.now();
+
   const results = {
+    dryRun: isDryRun,
     transitRefresh: false,
     weatherRefresh: false,
     notificationsSent: 0,
+    notificationsSkipped: 0,
     errors: [] as string[],
+    diagnostics: {
+      transitSource: "unknown",
+      weatherSource: "unknown",
+      usersChecked: 0,
+      elapsedMs: 0,
+    },
   };
 
   try {
@@ -56,34 +69,41 @@ export async function GET(req: Request) {
     ]);
 
     if (transit) {
-      await db.insert(transitSnapshots).values({
-        route: "JSQ-WTC",
-        status: transit.status,
-        advisoryText: transit.advisoryText,
-        headwayMin: transit.headwayMin,
-        source: transit.source,
-        sourceType: transit.source.includes("gtfs") ? "gtfsrt" : "panynj-json",
-      });
+      results.diagnostics.transitSource = transit.source;
+      if (!isDryRun) {
+        await db.insert(transitSnapshots).values({
+          route: "JSQ-WTC",
+          status: transit.status,
+          advisoryText: transit.advisoryText,
+          headwayMin: transit.headwayMin,
+          source: transit.source,
+          sourceType: transit.source.includes("gtfs") ? "gtfsrt" : "panynj-json",
+        });
+      }
       results.transitRefresh = true;
     }
 
     if (weather) {
-      await db.insert(weatherSnapshots).values({
-        temperature: weather.temperature,
-        feelsLike: weather.feelsLike,
-        precipProbability: weather.precipProbability,
-        precipType: weather.precipType,
-        windSpeed: weather.windSpeed,
-        condition: weather.condition,
-        isSevere: weather.isSevere,
-        forecastHours: weather.forecastHours,
-        source: weather.source,
-      });
+      results.diagnostics.weatherSource = weather.source;
+      if (!isDryRun) {
+        await db.insert(weatherSnapshots).values({
+          temperature: weather.temperature,
+          feelsLike: weather.feelsLike,
+          precipProbability: weather.precipProbability,
+          precipType: weather.precipType,
+          windSpeed: weather.windSpeed,
+          condition: weather.condition,
+          isSevere: weather.isSevere,
+          forecastHours: weather.forecastHours,
+          source: weather.source,
+        });
+      }
       results.weatherRefresh = true;
     }
 
     // 2. Proactive push notifications
-    const allUsers = await db.select().from(users);
+    const allUsers = isDryRun ? [] : await db.select().from(users);
+    results.diagnostics.usersChecked = allUsers.length;
     const now = new Date();
     const hour = now.getHours();
     const minute = now.getMinutes();
@@ -199,5 +219,6 @@ export async function GET(req: Request) {
     results.errors.push(e instanceof Error ? e.message : "Unknown error");
   }
 
+  results.diagnostics.elapsedMs = Date.now() - startTime;
   return NextResponse.json(results);
 }

@@ -29,4 +29,27 @@
 
 ---
 
+## 2026-03-06: Hardening Pass (v2.5 follow-up)
+
+### Action: CREATE × 1, UPDATE × 4
+**Rationale**: Data boundary policy is a new domain boundary; existing skills need updates for new capabilities.
+
+**Created**:
+- `data-governance` — anchored to `scripts/check-data-boundary.sh`, `docs/DATA_BOUNDARY.md`, `.gitignore`
+  - Trigger: public repo requires explicit data boundary enforcement
+  - Evidence: No prior policy existed; need CI guard against accidental data leaks
+
+**Updated**:
+- `transit-data-pipeline` — added protobufjs binary decode path (no longer a stub)
+- `notification-system` — added cron dry-run mode (`?dry=1`), diagnostics response
+- `recommendation-tuning` — added route-filtered insights integration
+- `checkin-lifecycle` — added test user auth strategy for production E2E
+
+### Scenarios Validated
+1. **"Did I accidentally commit .env?"** → `data-governance` activates → runs boundary check script → identifies violation → removal instructions
+2. **"Cron seems broken in production"** → `notification-system` activates → calls `/api/cron?dry=1` → reads diagnostics → identifies source/timing issues
+3. **"Insights don't show JSQ-33 trips"** → `recommendation-tuning` activates → checks `getInsightsData()` route filter → verifies activeRoutes wiring
+
+---
+
 *Future entries will be appended here with the same format.*

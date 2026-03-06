@@ -33,3 +33,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# data boundary (user/private data must never be committed)
+data/private/
+*.sqlite
+*.db
+*.dump
+*.sql.gz
+
+# playwright
+test-results/
+playwright-report/

@@ -10,12 +10,13 @@
 ## Current Skills
 | Skill | Domain | Primary File |
 |-------|--------|-------------|
-| `transit-data-pipeline` | PATH data ingestion | `src/lib/services/transit.ts` |
-| `recommendation-tuning` | Scoring engine + correlation | `src/lib/engine/recommend.ts` |
-| `checkin-lifecycle` | Session management + streaks | `src/lib/actions/commute.ts` |
-| `notification-system` | Push + cron + history | `src/lib/services/push.ts` |
-| `calendar-integration` | Google Calendar OAuth | `src/lib/services/calendar.ts` |
+| `transit-data-pipeline` | PATH data ingestion + GTFS-RT | `src/lib/services/transit.ts` |
+| `recommendation-tuning` | Scoring engine + correlation + learned penalties | `src/lib/engine/recommend.ts` |
+| `checkin-lifecycle` | Session management + streaks + offline sync | `src/lib/actions/commute.ts` |
+| `notification-system` | Push + cron + dry-run + history | `src/lib/services/push.ts` |
+| `calendar-integration` | Google Calendar OAuth + disconnect | `src/lib/services/calendar.ts` |
 | `schema-evolution` | Database schema management | `src/lib/db/schema.ts` |
+| `data-governance` | Data boundary policy + CI enforcement | `scripts/check-data-boundary.sh` |
 
 ## Skill File Structure
 ```

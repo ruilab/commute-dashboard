@@ -128,9 +128,13 @@ Systematic execution of 10 enhancements to the commute dashboard, ordered by imp
 - [x] Multi-route: simultaneous active routes (JSONB array, multi-select UI)
 - [x] Widget: auto-refresh via client-side router.refresh() polling
 
-## Residual Gaps (post-V2.5)
+## Residual Gaps (post-V2.5 hardening)
 
-- [ ] Full binary GTFS-RT protobuf parsing (needs protobufjs dependency; currently JSON-only)
-- [ ] E2E test auth bypass for CI (needs test database + session mock)
-- [ ] Route-filtered insights (schema ready; query filtering not yet wired)
-- [ ] Email notification channel (Resend/SendGrid integration)
+- [x] Full binary GTFS-RT protobuf parsing (protobufjs added; binary + JSON decode)
+- [x] E2E tests in CI (public pages + auth wall + API 401s; production auth via test user)
+- [x] Route-filtered insights (getInsightsData accepts route filter; routeBreakdown in response)
+- [x] Cron production readiness (dry-run mode + diagnostics)
+- [x] Data boundary policy (docs + script + CI enforcement)
+- [ ] Email notification channel (Resend/SendGrid — deferred, documented)
+- [ ] Route selector UI on insights page (action ready; UI not yet built)
+- [ ] Authenticated E2E tests (needs test GitHub account setup)

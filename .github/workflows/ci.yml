@@ -19,6 +19,9 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      - name: Data boundary check
+        run: bash scripts/check-data-boundary.sh
+
       - run: bun run lint
 
       - run: bun run typecheck

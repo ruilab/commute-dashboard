@@ -166,7 +166,7 @@ async function fetchGtfsRt(
     // Without a full protobuf library, we attempt a lightweight parse
     // of the common TripUpdate/StopTimeUpdate structure.
     // This handles the most common encoding for transit agencies.
-    const data = parseGtfsRtLightweight(new Uint8Array(buffer));
+    const data = await parseGtfsRtFeed(new Uint8Array(buffer));
     if (!data || data.length === 0) return null;
 
     const route = ROUTES[routeId];
@@ -223,53 +223,143 @@ async function fetchGtfsRt(
   }
 }
 
-/**
- * Lightweight GTFS-RT protobuf parser.
- * Handles the most common wire format for TripUpdate feeds without
- * requiring a full protobuf library dependency.
- *
- * GTFS-RT wire format (simplified):
- * - FeedMessage { header, entity[] }
- * - FeedEntity { id, trip_update { trip { route_id }, stop_time_update[] } }
- * - StopTimeUpdate { stop_id, arrival { time }, departure { time } }
- */
-function parseGtfsRtLightweight(
-  _bytes: Uint8Array
-): { routeId: string; headsign: string; stops: { stopId: string; arrivalTime: number | null; departureTime: number | null }[] }[] | null {
-  // Protobuf wire format parsing requires field tag decoding.
-  // For production use, this should use a proper protobuf library (e.g., protobufjs).
-  // This lightweight implementation handles the common case where the feed
-  // is also available as JSON (many agencies provide both).
+interface ParsedTripUpdate {
+  routeId: string;
+  headsign: string;
+  stops: { stopId: string; arrivalTime: number | null; departureTime: number | null }[];
+}
 
-  // Try JSON parse first (some feeds serve JSON when Accept header allows it)
+/**
+ * Parse GTFS-RT feed data. Tries binary protobuf first (via protobufjs),
+ * then falls back to JSON parsing.
+ */
+async function parseGtfsRtFeed(bytes: Uint8Array): Promise<ParsedTripUpdate[] | null> {
+  // 1. Try binary protobuf decode via protobufjs
   try {
-    const text = new TextDecoder().decode(_bytes);
-    if (text.startsWith("{") || text.startsWith("[")) {
-      const json = JSON.parse(text);
-      const entities = json.entity || json.entities || [];
-      return entities.map((e: Record<string, unknown>) => {
-        const tu = (e.trip_update || e.tripUpdate || {}) as Record<string, unknown>;
-        const trip = (tu.trip || {}) as Record<string, unknown>;
-        const updates = (tu.stop_time_update || tu.stopTimeUpdate || []) as Record<string, unknown>[];
-        return {
-          routeId: (trip.route_id || trip.routeId || "") as string,
-          headsign: "",
-          stops: updates.map((s: Record<string, unknown>) => ({
-            stopId: (s.stop_id || s.stopId || "") as string,
-            arrivalTime: ((s.arrival as Record<string, unknown>)?.time as number) || null,
-            departureTime: ((s.departure as Record<string, unknown>)?.time as number) || null,
-          })),
-        };
-      });
-    }
+    const result = await decodeGtfsRtProtobuf(bytes);
+    if (result && result.length > 0) return result;
   } catch {
-    // Not JSON, attempt binary protobuf parse
+    // Binary decode failed — try JSON fallback
   }
 
-  // Binary protobuf: would need protobufjs or manual varint decoding.
-  // For now, return null to fall through to JSON feed.
-  // TODO: Add protobufjs dependency for full binary GTFS-RT support.
+  // 2. JSON fallback (some feeds serve JSON)
+  try {
+    const text = new TextDecoder().decode(bytes);
+    if (text.startsWith("{") || text.startsWith("[")) {
+      return parseGtfsRtJson(text);
+    }
+  } catch {
+    // Not parseable
+  }
+
   return null;
+}
+
+/**
+ * Decode binary GTFS-RT protobuf using protobufjs.
+ *
+ * GTFS-RT schema: FeedMessage → entity[] → trip_update → stop_time_update[]
+ * We use protobufjs reflection API to define the schema inline
+ * (no .proto file needed).
+ */
+async function decodeGtfsRtProtobuf(bytes: Uint8Array): Promise<ParsedTripUpdate[] | null> {
+  // protobufjs is a server-only dep
+  const protobuf: typeof import("protobufjs") = await import("protobufjs");
+
+  // Define GTFS-RT schema using protobufjs reflection
+  const root = new protobuf.Root();
+
+  const FeedMessage = new protobuf.Type("FeedMessage")
+    .add(new protobuf.Field("header", 1, "FeedHeader"))
+    .add(new protobuf.Field("entity", 2, "FeedEntity", "repeated"));
+
+  const FeedHeader = new protobuf.Type("FeedHeader")
+    .add(new protobuf.Field("gtfsRealtimeVersion", 1, "string"))
+    .add(new protobuf.Field("timestamp", 3, "uint64"));
+
+  const FeedEntity = new protobuf.Type("FeedEntity")
+    .add(new protobuf.Field("id", 1, "string"))
+    .add(new protobuf.Field("tripUpdate", 3, "TripUpdate"));
+
+  const TripUpdate = new protobuf.Type("TripUpdate")
+    .add(new protobuf.Field("trip", 1, "TripDescriptor"))
+    .add(new protobuf.Field("stopTimeUpdate", 2, "StopTimeUpdate", "repeated"));
+
+  const TripDescriptor = new protobuf.Type("TripDescriptor")
+    .add(new protobuf.Field("tripId", 1, "string"))
+    .add(new protobuf.Field("routeId", 5, "string"));
+
+  const StopTimeUpdate = new protobuf.Type("StopTimeUpdate")
+    .add(new protobuf.Field("stopSequence", 1, "uint32"))
+    .add(new protobuf.Field("stopId", 4, "string"))
+    .add(new protobuf.Field("arrival", 2, "StopTimeEvent"))
+    .add(new protobuf.Field("departure", 3, "StopTimeEvent"));
+
+  const StopTimeEvent = new protobuf.Type("StopTimeEvent")
+    .add(new protobuf.Field("delay", 1, "int32"))
+    .add(new protobuf.Field("time", 2, "int64"));
+
+  root.add(FeedMessage);
+  root.add(FeedHeader);
+  root.add(FeedEntity);
+  root.add(TripUpdate);
+  root.add(TripDescriptor);
+  root.add(StopTimeUpdate);
+  root.add(StopTimeEvent);
+
+  const FeedMessageType = root.lookupType("FeedMessage");
+  const decoded = FeedMessageType.decode(bytes) as unknown as {
+    entity?: {
+      tripUpdate?: {
+        trip?: { routeId?: string };
+        stopTimeUpdate?: {
+          stopId?: string;
+          arrival?: { time?: number | { low: number; high: number } };
+          departure?: { time?: number | { low: number; high: number } };
+        }[];
+      };
+    }[];
+  };
+
+  if (!decoded.entity) return null;
+
+  const extractTime = (t: number | { low: number; high: number } | undefined): number | null => {
+    if (t == null) return null;
+    if (typeof t === "number") return t;
+    // protobufjs Long object
+    return t.low + t.high * 4294967296;
+  };
+
+  return decoded.entity
+    .filter((e) => e.tripUpdate?.stopTimeUpdate)
+    .map((e) => ({
+      routeId: e.tripUpdate?.trip?.routeId || "",
+      headsign: "",
+      stops: (e.tripUpdate?.stopTimeUpdate || []).map((s) => ({
+        stopId: s.stopId || "",
+        arrivalTime: extractTime(s.arrival?.time),
+        departureTime: extractTime(s.departure?.time),
+      })),
+    }));
+}
+
+function parseGtfsRtJson(text: string): ParsedTripUpdate[] | null {
+  const json = JSON.parse(text);
+  const entities = json.entity || json.entities || [];
+  return entities.map((e: Record<string, unknown>) => {
+    const tu = (e.trip_update || e.tripUpdate || {}) as Record<string, unknown>;
+    const trip = (tu.trip || {}) as Record<string, unknown>;
+    const updates = (tu.stop_time_update || tu.stopTimeUpdate || []) as Record<string, unknown>[];
+    return {
+      routeId: (trip.route_id || trip.routeId || "") as string,
+      headsign: "",
+      stops: updates.map((s: Record<string, unknown>) => ({
+        stopId: (s.stop_id || s.stopId || "") as string,
+        arrivalTime: ((s.arrival as Record<string, unknown>)?.time as number) || null,
+        departureTime: ((s.departure as Record<string, unknown>)?.time as number) || null,
+      })),
+    };
+  });
 }
 
 // ─── PATH JSON API (primary) ───────────────────────────────────────────────
