@@ -12,6 +12,8 @@ import { getTransitStatus } from "@/lib/services/transit";
 import { getWeather } from "@/lib/services/weather";
 import { sendPushNotification } from "@/lib/services/push";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isCommuteDay } from "@/lib/commute-days";
+import type { CommuteDays } from "@/lib/db/schema";
 
 /**
  * Cron endpoint for:
@@ -114,8 +116,6 @@ export async function GET(req: Request) {
     const now = new Date();
     const hour = now.getHours();
     const minute = now.getMinutes();
-    const day = now.getDay();
-    const isWeekday = day >= 1 && day <= 5;
 
     for (const user of allUsers) {
       const [settings] = await db
@@ -142,7 +142,13 @@ export async function GET(req: Request) {
       const sentTags = new Set(recentNotifs.map((n) => n.tag));
 
       // Leave reminder: 15 min before morning window start on weekdays
-      if (isWeekday && settings.pushLeaveReminder) {
+      // Respect per-user commute days
+      const userCommuteDay = isCommuteDay(
+        (settings.commuteDays || "weekdays") as CommuteDays,
+        settings.customDays as number[] | undefined
+      );
+
+      if (userCommuteDay && settings.pushLeaveReminder) {
         const [wh, wm] = settings.morningWindowStart.split(":").map(Number);
         const reminderHour = wm < 15 ? wh - 1 : wh;
         const reminderMin = (wm + 45) % 60;

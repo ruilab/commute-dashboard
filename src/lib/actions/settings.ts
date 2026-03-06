@@ -16,7 +16,6 @@ export async function getSettings() {
     .limit(1);
 
   if (!settings) {
-    // Create default settings
     const [created] = await db
       .insert(userSettings)
       .values({ userId: session.user.id })
@@ -25,6 +24,11 @@ export async function getSettings() {
   }
 
   return settings;
+}
+
+export async function isOnboardingComplete(): Promise<boolean> {
+  const settings = await getSettings();
+  return settings?.onboardingCompletedAt !== null && settings?.onboardingCompletedAt !== undefined;
 }
 
 export async function updateSettings(data: {
@@ -42,6 +46,10 @@ export async function updateSettings(data: {
   pushWeatherAlert?: boolean;
   activeRoute?: string;
   activeRoutes?: string[];
+  preferredMode?: string;
+  commuteDays?: string;
+  customDays?: number[];
+  onboardingCompletedAt?: Date;
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
@@ -59,4 +67,26 @@ export async function updateSettings(data: {
       ...data,
     });
   }
+}
+
+export async function completeOnboarding(data: {
+  preferredMode: string;
+  commuteDays: string;
+  customDays?: number[];
+  activeRoutes: string[];
+  walkHomeToJsq: number;
+  walkWtcToOffice: number;
+  walkOfficeToWtc: number;
+  walkJsqToHome: number;
+  morningWindowStart: string;
+  morningWindowEnd: string;
+  eveningWindowStart: string;
+  eveningWindowEnd: string;
+  pushEnabled: boolean;
+}) {
+  await updateSettings({
+    ...data,
+    activeRoute: data.activeRoutes[0],
+    onboardingCompletedAt: new Date(),
+  });
 }

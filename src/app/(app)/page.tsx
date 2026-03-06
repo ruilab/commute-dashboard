@@ -1,7 +1,12 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
+import { isOnboardingComplete } from "@/lib/actions/settings";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const onboarded = await isOnboardingComplete();
+  if (!onboarded) redirect("/onboarding");
+
   return (
     <div className="space-y-4">
       <header className="flex items-center justify-between">

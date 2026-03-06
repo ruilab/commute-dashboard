@@ -21,6 +21,7 @@ const CONFIGS: Record<string, RateLimitConfig> = {
   "push-subscribe": { maxTokens: 5, refillRate: 0.1 }, // 5 req, refill 1/10s
   widget: { maxTokens: 20, refillRate: 0.33 }, // 20 req, refill 1/3s
   cron: { maxTokens: 3, refillRate: 0.05 }, // 3 req, refill 1/20s
+  "feature-request": { maxTokens: 5, refillRate: 0.02 }, // 5 req, refill 1/50s
   default: { maxTokens: 60, refillRate: 1 },
 };
 

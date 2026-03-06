@@ -92,8 +92,12 @@ export const userSettings = pgTable("user_settings", {
   pushWeatherAlert: boolean("push_weather_alert").default(false).notNull(),
   // v2.5: multi-route — JSONB array of route IDs (backward compat: defaults to single-element)
   activeRoutes: jsonb("active_routes").$type<string[]>().default(["JSQ-WTC"]).notNull(),
-  // Kept for backward compat reads; new code uses activeRoutes
   activeRoute: text("active_route").default("JSQ-WTC").notNull(),
+  // v3: mode + schedule + onboarding
+  preferredMode: text("preferred_mode").default("subway").notNull(),
+  commuteDays: text("commute_days").default("weekdays").notNull(),
+  customDays: jsonb("custom_days").$type<number[]>(),
+  onboardingCompletedAt: timestamp("onboarding_completed_at", { mode: "date" }),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
@@ -135,6 +139,7 @@ export const commuteSessions = pgTable(
     direction: text("direction").$type<Direction>().notNull(),
     // v2.5: route-aware sessions
     route: text("route").default("JSQ-WTC").notNull(),
+    mode: text("mode").default("subway").notNull(),
     startedAt: timestamp("started_at", { mode: "date" }).defaultNow().notNull(),
     completedAt: timestamp("completed_at", { mode: "date" }),
     totalDurationMin: real("total_duration_min"),
@@ -151,7 +156,9 @@ export const commuteSessions = pgTable(
 export type EventStep =
   | "start_commute"
   | "reached_station"
+  | "reached_terminal"
   | "boarded_train"
+  | "boarded_ferry"
   | "arrived_wtc"
   | "arrived_jsq"
   | "arrived_destination";
@@ -207,6 +214,7 @@ export const transitSnapshots = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     route: text("route").default("JSQ-WTC").notNull(),
+    mode: text("mode").default("subway").notNull(),
     status: text("status").notNull(),
     advisoryText: text("advisory_text"),
     headwayMin: real("headway_min"),
@@ -279,7 +287,37 @@ export const notificationLog = pgTable(
 );
 
 export const rateLimitBuckets = pgTable("rate_limit_buckets", {
-  key: text("key").primaryKey(), // "userId:endpoint"
+  key: text("key").primaryKey(),
   tokens: integer("tokens").default(0).notNull(),
   lastRefill: timestamp("last_refill", { mode: "date" }).defaultNow().notNull(),
 });
+
+// ─── v3: commute mode + onboarding + feature requests ────────────────────────
+
+export type CommuteMode = "subway" | "ferry";
+export type CommuteDays = "weekdays" | "all" | "custom";
+
+export const featureRequests = pgTable(
+  "feature_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    category: text("category").default("general").notNull(),
+    githubIssueNumber: integer("github_issue_number"),
+    githubSyncStatus: text("github_sync_status")
+      .$type<"pending" | "synced" | "failed">()
+      .default("pending")
+      .notNull(),
+    githubSyncError: text("github_sync_error"),
+    fingerprint: text("fingerprint"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("idx_feature_user").on(t.userId, t.createdAt),
+    index("idx_feature_fingerprint").on(t.fingerprint),
+  ]
+);

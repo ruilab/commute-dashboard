@@ -56,12 +56,20 @@ export default async function SettingsPage() {
       <CalendarStatus connected={!!calConn?.accessToken} />
 
       {/* Links */}
-      <div className="rounded-xl bg-card p-4 shadow-sm">
+      <div className="rounded-xl bg-card p-4 shadow-sm space-y-3">
         <Link
           href="/notifications"
           className="flex items-center justify-between text-sm"
         >
           <span>Notification History</span>
+          <span className="text-muted-foreground">→</span>
+        </Link>
+        <div className="border-t border-border" />
+        <Link
+          href="/onboarding?reset=1"
+          className="flex items-center justify-between text-sm"
+        >
+          <span>Run Onboarding Again</span>
           <span className="text-muted-foreground">→</span>
         </Link>
       </div>
