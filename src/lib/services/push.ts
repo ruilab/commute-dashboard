@@ -13,6 +13,7 @@
 import { db } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { log } from "@/lib/logger";
 
 export interface PushPayload {
   title: string;
@@ -71,7 +72,7 @@ export async function sendPushNotification(
   try {
     webpush = await import("web-push");
   } catch {
-    console.error("web-push not installed. Run: npm install web-push");
+    log.error("web-push not installed. Run: bun add web-push");
     return false;
   }
 
@@ -80,7 +81,7 @@ export async function sendPushNotification(
   const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
 
   if (!vapidPublicKey || !vapidPrivateKey) {
-    console.error("VAPID keys not configured");
+    log.error("VAPID keys not configured");
     return false;
   }
 

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { checkOrigin } from "@/lib/api-guard";
 import { buildIssueTitle, buildIssueBody } from "@/lib/issue-format";
+import { log } from "@/lib/logger";
 import { NextResponse } from "next/server";
 
 /**
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
 
   if (!issueRes.ok) {
     const errText = await issueRes.text();
-    console.error("[feature-request] GitHub API error:", errText.slice(0, 200));
+    log.error("[feature-request] GitHub API error", { detail: errText.slice(0, 200) });
     return NextResponse.json({ error: "Failed to create issue" }, { status: 502 });
   }
 
