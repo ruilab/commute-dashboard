@@ -28,8 +28,17 @@ export async function getSettings() {
 }
 
 export async function isOnboardingComplete(): Promise<boolean> {
-  const settings = await getSettings();
-  return settings?.onboardingCompletedAt !== null && settings?.onboardingCompletedAt !== undefined;
+  const session = await auth();
+  if (!session?.user?.id) return false;
+
+  // Direct query — no getSettings() indirection
+  const [row] = await db
+    .select({ ts: userSettings.onboardingCompletedAt })
+    .from(userSettings)
+    .where(eq(userSettings.userId, session.user.id))
+    .limit(1);
+
+  return row?.ts !== null && row?.ts !== undefined;
 }
 
 export async function updateSettings(data: {
@@ -55,14 +64,14 @@ export async function updateSettings(data: {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const existing = await getSettings();
+  // Single upsert — try update first, insert if no rows affected
+  const updated = await db
+    .update(userSettings)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(userSettings.userId, session.user.id))
+    .returning({ id: userSettings.id });
 
-  if (existing) {
-    await db
-      .update(userSettings)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(userSettings.userId, session.user.id));
-  } else {
+  if (updated.length === 0) {
     await db.insert(userSettings).values({
       userId: session.user.id,
       ...data,
@@ -70,6 +79,10 @@ export async function updateSettings(data: {
   }
 }
 
+/**
+ * Complete onboarding in minimal DB round-trips.
+ * Single auth() call, parallel settings + profile writes.
+ */
 export async function completeOnboarding(data: {
   preferredMode: string;
   commuteDays: string;
@@ -93,11 +106,15 @@ export async function completeOnboarding(data: {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  await updateSettings({
+  const userId = session.user.id;
+  const now = new Date();
+
+  const settingsPayload = {
     preferredMode: data.preferredMode,
     commuteDays: data.commuteDays,
     customDays: data.customDays,
     activeRoutes: data.activeRoutes,
+    activeRoute: data.activeRoutes[0],
     walkHomeToJsq: data.walkHomeToJsq,
     walkWtcToOffice: data.walkWtcToOffice,
     walkOfficeToWtc: data.walkOfficeToWtc,
@@ -107,35 +124,42 @@ export async function completeOnboarding(data: {
     eveningWindowStart: data.eveningWindowStart,
     eveningWindowEnd: data.eveningWindowEnd,
     pushEnabled: data.pushEnabled,
-    activeRoute: data.activeRoutes[0],
-    onboardingCompletedAt: new Date(),
-  });
+    onboardingCompletedAt: now,
+    updatedAt: now,
+  };
 
-  const [existingProfile] = await db
-    .select({ id: commuterProfiles.id })
-    .from(commuterProfiles)
-    .where(eq(commuterProfiles.userId, session.user.id))
-    .limit(1);
-
-  const commuterProfilePayload = {
+  const profilePayload = {
     homeArea: data.homeArea.trim() || null,
     officeArea: data.officeArea.trim() || null,
     preferredModes: normalizePreferredModes(data.preferredModes, data.preferredMode),
     riskTolerance: data.riskTolerance,
     reliabilityPref: data.reliabilityPref,
-    updatedAt: new Date(),
+    updatedAt: now,
   };
 
-  if (existingProfile) {
-    await db
+  // Run settings upsert + profile upsert in parallel
+  await Promise.all([
+    // Settings: try update, fall back to insert
+    db
+      .update(userSettings)
+      .set(settingsPayload)
+      .where(eq(userSettings.userId, userId))
+      .returning({ id: userSettings.id })
+      .then((rows) => {
+        if (rows.length === 0) {
+          return db.insert(userSettings).values({ userId, ...settingsPayload });
+        }
+      }),
+    // Profile: try update, fall back to insert
+    db
       .update(commuterProfiles)
-      .set(commuterProfilePayload)
-      .where(eq(commuterProfiles.userId, session.user.id));
-    return;
-  }
-
-  await db.insert(commuterProfiles).values({
-    userId: session.user.id,
-    ...commuterProfilePayload,
-  });
+      .set(profilePayload)
+      .where(eq(commuterProfiles.userId, userId))
+      .returning({ id: commuterProfiles.id })
+      .then((rows) => {
+        if (rows.length === 0) {
+          return db.insert(commuterProfiles).values({ userId, ...profilePayload });
+        }
+      }),
+  ]);
 }
