@@ -19,8 +19,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [GitHub],
   callbacks: {
     async signIn({ profile }) {
-      if (!profile?.login) return false;
-      const username = (profile.login as string).toLowerCase();
+      const login = profile?.login as string | undefined;
+      console.log("[auth] signIn attempt:", { login, allowedUsers });
+      if (!login) return false;
+      const username = login.toLowerCase();
       if (allowedUsers.length === 0) return true;
       return allowedUsers.includes(username);
     },
