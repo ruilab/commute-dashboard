@@ -6,13 +6,13 @@ First-time users are redirected here from the dashboard. Persists all settings i
 
 ## Steps
 
-1. **Mode & Schedule** — Subway vs Ferry (ferry disabled, marked "Coming soon") + weekday/daily
+1. **Profile & Schedule** — Home area + office location + primary mode + weekday/daily + preferred transit modes
 2. **Route Selection** — Multi-select PATH routes (JSQ-WTC, JSQ-33, HOB-WTC, HOB-33)
 3. **Walking Times** — Stepper inputs for 4 walk legs (home→station, station→office, reverse)
-4. **Time Windows & Notifications** — Morning/evening departure windows + push toggle
+4. **Time Windows & Preferences** — Morning/evening departure windows + risk tolerance + reliability preference + push toggle
 5. **Review & Confirm** — Summary card → "Start commuting" saves and redirects to dashboard
 
-## DB Fields
+## DB Fields (`user_settings`)
 
 | Field | Type | Default |
 |-------|------|---------|
@@ -30,6 +30,16 @@ First-time users are redirected here from the dashboard. Persists all settings i
 | `eveningWindowEnd` | text | "21:00" |
 | `pushEnabled` | boolean | false |
 | `onboardingCompletedAt` | timestamp | null (set on completion) |
+
+## DB Fields (`commuter_profiles`)
+
+| Field | Type | Default |
+|-------|------|---------|
+| `homeArea` | text | null |
+| `officeArea` | text | null |
+| `preferredModes` | jsonb (string[]) | ["path"] |
+| `riskTolerance` | text | "moderate" |
+| `reliabilityPref` | text | "fastest" |
 
 ## Redirect Logic
 

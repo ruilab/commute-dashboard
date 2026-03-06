@@ -54,7 +54,9 @@ bun run db:generate      # Generate migrations
 ## Onboarding
 - First login → `/onboarding` (5-step wizard)
 - Re-run: `/onboarding?reset=1` (linked from Settings)
-- Sets `onboardingCompletedAt` timestamp in user_settings
+- Persists schedule/trip defaults in `user_settings`
+- Persists V3 profile fields (`homeArea`, `officeArea`, `preferredModes`, `riskTolerance`, `reliabilityPref`) in `commuter_profiles`
+- Sets `onboardingCompletedAt` timestamp in `user_settings`
 - Dashboard checks this and redirects if null
 - See `docs/ONBOARDING.md`
 
