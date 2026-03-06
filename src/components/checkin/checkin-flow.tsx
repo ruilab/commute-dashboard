@@ -6,6 +6,7 @@ import {
   startSession,
   addEvent,
   addTag,
+  cancelSession,
 } from "@/lib/actions/commute";
 import type { Direction, EventStep } from "@/lib/db/schema";
 
@@ -53,6 +54,7 @@ export function CheckinFlow({
   const [addedTags, setAddedTags] = useState<string[]>(
     activeSession?.tags.map((t) => t.tag) ?? []
   );
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const handleStartSession = (direction: Direction) => {
     startTransition(async () => {
@@ -74,6 +76,15 @@ export function CheckinFlow({
     startTransition(async () => {
       await addTag(activeSession.session.id, tag);
       setAddedTags((prev) => [...prev, tag]);
+    });
+  };
+
+  const handleCancelSession = () => {
+    if (!activeSession) return;
+    startTransition(async () => {
+      await cancelSession(activeSession.session.id);
+      setConfirmCancel(false);
+      router.refresh();
     });
   };
 
@@ -128,19 +139,45 @@ export function CheckinFlow({
           <span className="text-lg">
             {activeSession.session.direction === "outbound" ? "🌅" : "🌆"}
           </span>
-          <span className="font-medium capitalize">
-            {activeSession.session.direction === "outbound"
-              ? "To Office"
-              : "To Home"}
-          </span>
+          <div>
+            <span className="font-medium capitalize">
+              {activeSession.session.direction === "outbound"
+                ? "To Office"
+                : "To Home"}
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Started{" "}
+              {new Date(activeSession.session.startedAt).toLocaleTimeString(
+                "en-US",
+                { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }
+              )}
+            </p>
+          </div>
         </div>
-        <span className="text-sm text-muted-foreground">
-          Started{" "}
-          {new Date(activeSession.session.startedAt).toLocaleTimeString(
-            "en-US",
-            { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }
-          )}
-        </span>
+        {!confirmCancel ? (
+          <button
+            onClick={() => setConfirmCancel(true)}
+            className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          >
+            Cancel
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleCancelSession}
+              disabled={isPending}
+              className="rounded-lg bg-destructive px-2.5 py-1.5 text-xs font-medium text-destructive-foreground disabled:opacity-50"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setConfirmCancel(false)}
+              className="rounded-lg bg-secondary px-2.5 py-1.5 text-xs text-secondary-foreground"
+            >
+              Keep
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Steps */}

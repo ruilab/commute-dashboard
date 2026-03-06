@@ -79,6 +79,31 @@ export async function addTag(
   return db.insert(commuteTags).values({ sessionId, tag, note }).returning();
 }
 
+export async function cancelSession(sessionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  // Verify the session belongs to this user and is incomplete
+  const [target] = await db
+    .select({ id: commuteSessions.id })
+    .from(commuteSessions)
+    .where(
+      and(
+        eq(commuteSessions.id, sessionId),
+        eq(commuteSessions.userId, session.user.id),
+        sql`${commuteSessions.completedAt} IS NULL`
+      )
+    )
+    .limit(1);
+
+  if (!target) throw new Error("Session not found or already completed");
+
+  // Delete session — events and tags cascade-delete via FK
+  await db
+    .delete(commuteSessions)
+    .where(eq(commuteSessions.id, sessionId));
+}
+
 export async function getActiveSession() {
   const session = await auth();
   if (!session?.user?.id) return null;

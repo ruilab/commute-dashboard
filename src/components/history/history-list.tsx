@@ -39,6 +39,11 @@ export async function HistoryList() {
                 <div>
                   <p className="text-sm font-medium">
                     {s.direction === "outbound" ? "To Office" : "To Home"}
+                    {s.route && s.route !== "JSQ-WTC" && (
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        via {s.route}
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatDateShort(new Date(s.startedAt))} ·{" "}
