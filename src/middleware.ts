@@ -13,7 +13,8 @@ export default auth((req) => {
     pathname === "/manifest.json" ||
     pathname === "/favicon.ico" ||
     pathname === "/offline" ||
-    pathname === "/api/cron" // Protected by CRON_SECRET, not session
+    pathname === "/api/cron" || // Protected by CRON_SECRET, not session
+    pathname === "/api/changelog" // POST uses CRON_SECRET; GET uses session (checked in handler)
   ) {
     return NextResponse.next();
   }
