@@ -39,6 +39,7 @@
 |----------|----------|
 | Transit API down | Schedule-based fallback; "stale" indicator; lower confidence |
 | Weather API down | Zero-value weather; no weather penalty in scoring |
+| Recommendation engine throws | Dashboard keeps rendering and shows schedule-based fallback departure bands with low confidence |
 | Calendar disconnected | No calendar constraint; wider departure window |
 | DB connection error | Error boundary shows "Try again"; no silent data loss |
 | GitHub issue API down | Feature request returns 502; user sees error message |

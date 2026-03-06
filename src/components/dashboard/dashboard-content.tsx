@@ -227,6 +227,7 @@ export async function DashboardContent() {
         confidence={data.morningRec.confidence}
         explanation={data.morningRec.explanation}
         estimatedMinutes={data.morningRec.estimatedMinutes}
+        isFallback={data.morningRec.isFallback}
       />
 
       {/* Evening Recommendation */}
@@ -238,6 +239,7 @@ export async function DashboardContent() {
         confidence={data.eveningRec.confidence}
         explanation={data.eveningRec.explanation}
         estimatedMinutes={data.eveningRec.estimatedMinutes}
+        isFallback={data.eveningRec.isFallback}
       />
 
       <p className="text-center text-xs text-muted-foreground">
@@ -262,6 +264,7 @@ function RecommendationCard({
   confidence,
   explanation,
   estimatedMinutes,
+  isFallback,
 }: {
   title: string;
   icon: string;
@@ -270,6 +273,7 @@ function RecommendationCard({
   confidence: "high" | "medium" | "low";
   explanation: string;
   estimatedMinutes: number;
+  isFallback: boolean;
 }) {
   return (
     <div className="rounded-xl bg-card p-4 shadow-sm">
@@ -299,6 +303,12 @@ function RecommendationCard({
             </span>
           ))}
         </div>
+      )}
+
+      {isFallback && (
+        <p className="mt-3 rounded-md bg-warning/10 px-2 py-1 text-xs text-warning">
+          Using schedule-based fallback while live scoring recovers.
+        </p>
       )}
 
       <p className="mt-3 text-sm text-muted-foreground leading-relaxed">

@@ -49,6 +49,7 @@ bun run db:generate      # Generate migrations
 - Fire-and-forget DB writes: `.catch(() => {})`
 - External fetches: use `resilientFetch()` from `src/lib/resilient-fetch.ts`
 - Logging: use `log.info/warn/error()` from `src/lib/logger.ts`
+- Dashboard recommendations: wrap `generateRecommendation()` with a fallback so cards degrade gracefully instead of failing the whole dashboard
 
 ## Onboarding
 - First login → `/onboarding` (5-step wizard)

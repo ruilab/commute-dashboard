@@ -4,17 +4,47 @@ import { getTransitStatus, getRouteConfig } from "@/lib/services/transit";
 import { getWeather } from "@/lib/services/weather";
 import { getCalendarContext } from "@/lib/services/calendar";
 import { generateRecommendation } from "@/lib/engine/recommend";
+import { buildRecommendationFallback } from "@/lib/engine/recommendation-fallback";
 import { analyzeCorrelations } from "@/lib/engine/correlation";
 import { getSettings } from "@/lib/actions/settings";
 import { getHistoricalStats } from "@/lib/actions/commute";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { log } from "@/lib/logger";
 import {
   recommendationSnapshots,
   transitSnapshots,
   weatherSnapshots,
 } from "@/lib/db/schema";
 import type { Direction } from "@/lib/db/schema";
+
+type RecommendationInput = Parameters<typeof generateRecommendation>[0];
+type DashboardRecommendation = ReturnType<typeof generateRecommendation> & {
+  isFallback: boolean;
+};
+
+function safeGenerateRecommendation(
+  input: RecommendationInput
+): DashboardRecommendation {
+  try {
+    return { ...generateRecommendation(input), isFallback: false };
+  } catch (error) {
+    log.error("dashboard.recommendation_fallback_used", {
+      direction: input.direction,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return {
+      ...buildRecommendationFallback({
+        direction: input.direction,
+        walking: input.walking,
+        windowStart: input.windowStart,
+        windowEnd: input.windowEnd,
+        baseTrainTimeMin: input.baseTrainTimeMin ?? 13,
+      }),
+      isFallback: true,
+    };
+  }
+}
 
 export async function getDashboardData() {
   const session = await auth();
@@ -62,7 +92,7 @@ export async function getDashboardData() {
     if (latestDepart < morningWindowEnd) morningWindowEnd = latestDepart;
   }
 
-  const morningRec = generateRecommendation({
+  const morningRec = safeGenerateRecommendation({
     direction: "outbound",
     transit,
     weather,
@@ -74,7 +104,7 @@ export async function getDashboardData() {
     learnedPenalties,
   });
 
-  const eveningRec = generateRecommendation({
+  const eveningRec = safeGenerateRecommendation({
     direction: "return",
     transit,
     weather,
@@ -138,6 +168,7 @@ export async function getDashboardData() {
       confidence: morningRec.confidence,
       explanation: morningRec.explanation,
       estimatedMinutes: morningRec.bestBand.estimatedDoorToDoor,
+      isFallback: morningRec.isFallback,
     },
     eveningRec: {
       bestBand: eveningRec.bestBand.label,
@@ -145,6 +176,7 @@ export async function getDashboardData() {
       confidence: eveningRec.confidence,
       explanation: eveningRec.explanation,
       estimatedMinutes: eveningRec.bestBand.estimatedDoorToDoor,
+      isFallback: eveningRec.isFallback,
     },
     activeRoutes,
     primaryRoute,
