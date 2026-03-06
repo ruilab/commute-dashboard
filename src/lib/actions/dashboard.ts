@@ -4,6 +4,7 @@ import { getTransitStatus, getRouteConfig } from "@/lib/services/transit";
 import { getWeather } from "@/lib/services/weather";
 import { getCalendarContext } from "@/lib/services/calendar";
 import { generateRecommendation } from "@/lib/engine/recommend";
+import { analyzeCorrelations } from "@/lib/engine/correlation";
 import { getSettings } from "@/lib/actions/settings";
 import { getHistoricalStats } from "@/lib/actions/commute";
 import { auth } from "@/lib/auth";
@@ -20,16 +21,23 @@ export async function getDashboardData() {
   if (!session?.user?.id) throw new Error("Not authenticated");
 
   const settingsData = await getSettings();
-  const activeRoute = settingsData?.activeRoute ?? "JSQ-WTC";
-  const routeConfig = getRouteConfig(activeRoute);
+  // v2.5: multi-route support — use activeRoutes array, fallback to activeRoute
+  const activeRoutes: string[] =
+    settingsData?.activeRoutes && settingsData.activeRoutes.length > 0
+      ? settingsData.activeRoutes
+      : [settingsData?.activeRoute ?? "JSQ-WTC"];
 
-  const [transit, weather, outboundStats, returnStats, calendar] =
+  const primaryRoute = activeRoutes[0];
+  const routeConfig = getRouteConfig(primaryRoute);
+
+  const [transit, weather, outboundStats, returnStats, calendar, correlations] =
     await Promise.all([
-      getTransitStatus(activeRoute),
+      getTransitStatus(primaryRoute),
       getWeather(),
       getHistoricalStats("outbound"),
       getHistoricalStats("return"),
       getCalendarContext(session.user.id).catch(() => null),
+      analyzeCorrelations(session.user.id, 60).catch(() => null),
     ]);
   const settings = settingsData;
 
@@ -40,21 +48,18 @@ export async function getDashboardData() {
     jsqToHome: settings?.walkJsqToHome ?? 8,
   };
 
-  // If calendar says "must arrive by 9:30", adjust morning window end
+  // Feed learned penalties from correlation engine
+  const learnedPenalties = correlations?.learnedPenalties ?? null;
+
   let morningWindowEnd = settings?.morningWindowEnd ?? "10:00";
   if (calendar?.mustArriveBy) {
-    // Work backward: must arrive - train time - wait - walk to station
     const [h, m] = calendar.mustArriveBy.split(":").map(Number);
     const arriveByMin = h * 60 + m;
-    const trainAndWait = 13 + 5; // base train + average wait
+    const trainAndWait = routeConfig.baseTrainTimeMin + 5;
     const walkToStation = walking.homeToJsq;
     const latestDepartMin = arriveByMin - trainAndWait - walkToStation;
     const latestDepart = `${Math.floor(latestDepartMin / 60).toString().padStart(2, "0")}:${(latestDepartMin % 60).toString().padStart(2, "0")}`;
-
-    // Only constrain if it's earlier than current window end
-    if (latestDepart < morningWindowEnd) {
-      morningWindowEnd = latestDepart;
-    }
+    if (latestDepart < morningWindowEnd) morningWindowEnd = latestDepart;
   }
 
   const morningRec = generateRecommendation({
@@ -66,6 +71,7 @@ export async function getDashboardData() {
     windowStart: settings?.morningWindowStart ?? "08:30",
     windowEnd: morningWindowEnd,
     baseTrainTimeMin: routeConfig.baseTrainTimeMin,
+    learnedPenalties,
   });
 
   const eveningRec = generateRecommendation({
@@ -77,16 +83,18 @@ export async function getDashboardData() {
     windowStart: settings?.eveningWindowStart ?? "19:00",
     windowEnd: settings?.eveningWindowEnd ?? "21:00",
     baseTrainTimeMin: routeConfig.baseTrainTimeMin,
+    learnedPenalties,
   });
 
-  // Persist snapshots (fire and forget)
-  persistSnapshots(
-    session.user.id,
-    transit,
-    weather,
-    morningRec,
-    eveningRec
-  ).catch(() => {});
+  // Fetch additional routes if multi-route
+  const additionalRoutes = await Promise.all(
+    activeRoutes.slice(1).map(async (routeId) => {
+      const rt = await getTransitStatus(routeId).catch(() => null);
+      return rt ? { routeId, status: rt.status, headwayMin: rt.headwayMin } : null;
+    })
+  );
+
+  persistSnapshots(session.user.id, transit, weather, morningRec, eveningRec).catch(() => {});
 
   return {
     transit: {
@@ -138,6 +146,10 @@ export async function getDashboardData() {
       explanation: eveningRec.explanation,
       estimatedMinutes: eveningRec.bestBand.estimatedDoorToDoor,
     },
+    activeRoutes,
+    primaryRoute,
+    additionalRoutes: additionalRoutes.filter(Boolean),
+    usesLearnedPenalties: learnedPenalties !== null && correlations !== null && correlations.dataPoints >= 5,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -156,6 +168,7 @@ async function persistSnapshots(
       advisoryText: transit.advisoryText,
       headwayMin: transit.headwayMin,
       source: transit.source,
+      sourceType: transit.source.includes("gtfs") ? "gtfsrt" : transit.source === "schedule" ? "schedule" : "panynj-json",
     }),
     db.insert(weatherSnapshots).values({
       temperature: weather.temperature,

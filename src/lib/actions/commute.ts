@@ -11,7 +11,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 
-export async function startSession(direction: Direction) {
+export async function startSession(direction: Direction, route = "JSQ-WTC") {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
@@ -20,6 +20,7 @@ export async function startSession(direction: Direction) {
     .values({
       userId: session.user.id,
       direction,
+      route,
     })
     .returning();
 

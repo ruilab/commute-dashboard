@@ -41,6 +41,7 @@ export async function updateSettings(data: {
   pushServiceAlert?: boolean;
   pushWeatherAlert?: boolean;
   activeRoute?: string;
+  activeRoutes?: string[];
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");

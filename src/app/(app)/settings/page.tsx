@@ -1,10 +1,23 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { CalendarStatus } from "@/components/settings/calendar-status";
 import { getSettings } from "@/lib/actions/settings";
 import { auth, signOut } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { calendarConnections } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function SettingsPage() {
   const [settings, session] = await Promise.all([getSettings(), auth()]);
+
+  const [calConn] = session?.user?.id
+    ? await db
+        .select()
+        .from(calendarConnections)
+        .where(eq(calendarConnections.userId, session.user.id))
+        .limit(1)
+    : [null];
 
   return (
     <div className="space-y-6">
@@ -32,48 +45,35 @@ export default async function SettingsPage() {
                   pushLeaveReminder: settings.pushLeaveReminder,
                   pushServiceAlert: settings.pushServiceAlert,
                   pushWeatherAlert: settings.pushWeatherAlert,
-                  activeRoute: settings.activeRoute,
+                  activeRoutes: settings.activeRoutes ?? [settings.activeRoute],
                 }
               : null
           }
         />
       </Suspense>
 
-      {/* Calendar integration */}
+      {/* Calendar integration with disconnect */}
+      <CalendarStatus connected={!!calConn?.accessToken} />
+
+      {/* Links */}
       <div className="rounded-xl bg-card p-4 shadow-sm">
-        <h3 className="mb-3 font-medium">Calendar</h3>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Connect Google Calendar to adjust morning recommendations based on
-          your first meeting time.
-        </p>
-        <a
-          href="/api/calendar/connect"
-          className="tap-target inline-block rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+        <Link
+          href="/notifications"
+          className="flex items-center justify-between text-sm"
         >
-          Connect Google Calendar
-        </a>
+          <span>Notification History</span>
+          <span className="text-muted-foreground">→</span>
+        </Link>
       </div>
 
       <div className="rounded-xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">
-              {session?.user?.name || "User"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {session?.user?.email}
-            </p>
+            <p className="text-sm font-medium">{session?.user?.name || "User"}</p>
+            <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
           </div>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/auth/signin" });
-            }}
-          >
-            <button
-              type="submit"
-              className="rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-secondary"
-            >
+          <form action={async () => { "use server"; await signOut({ redirectTo: "/auth/signin" }); }}>
+            <button type="submit" className="rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-secondary">
               Sign out
             </button>
           </form>

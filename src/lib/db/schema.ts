@@ -78,22 +78,21 @@ export const userSettings = pgTable("user_settings", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" })
     .unique(),
-  // Walking durations in minutes
   walkHomeToJsq: integer("walk_home_to_jsq").default(8).notNull(),
   walkWtcToOffice: integer("walk_wtc_to_office").default(10).notNull(),
   walkOfficeToWtc: integer("walk_office_to_wtc").default(10).notNull(),
   walkJsqToHome: integer("walk_jsq_to_home").default(8).notNull(),
-  // Decision windows (stored as "HH:MM")
   morningWindowStart: text("morning_window_start").default("08:30").notNull(),
   morningWindowEnd: text("morning_window_end").default("10:00").notNull(),
   eveningWindowStart: text("evening_window_start").default("19:00").notNull(),
   eveningWindowEnd: text("evening_window_end").default("21:00").notNull(),
-  // Notification preferences
   pushEnabled: boolean("push_enabled").default(false).notNull(),
   pushLeaveReminder: boolean("push_leave_reminder").default(true).notNull(),
   pushServiceAlert: boolean("push_service_alert").default(true).notNull(),
   pushWeatherAlert: boolean("push_weather_alert").default(false).notNull(),
-  // Route preference (for multi-route support)
+  // v2.5: multi-route — JSONB array of route IDs (backward compat: defaults to single-element)
+  activeRoutes: jsonb("active_routes").$type<string[]>().default(["JSQ-WTC"]).notNull(),
+  // Kept for backward compat reads; new code uses activeRoutes
   activeRoute: text("active_route").default("JSQ-WTC").notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
@@ -134,6 +133,8 @@ export const commuteSessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     direction: text("direction").$type<Direction>().notNull(),
+    // v2.5: route-aware sessions
+    route: text("route").default("JSQ-WTC").notNull(),
     startedAt: timestamp("started_at", { mode: "date" }).defaultNow().notNull(),
     completedAt: timestamp("completed_at", { mode: "date" }),
     totalDurationMin: real("total_duration_min"),
@@ -143,6 +144,7 @@ export const commuteSessions = pgTable(
   (t) => [
     index("idx_sessions_user_date").on(t.userId, t.startedAt),
     index("idx_sessions_direction").on(t.direction),
+    index("idx_sessions_route").on(t.route),
   ]
 );
 
@@ -175,7 +177,7 @@ export const commuteTags = pgTable(
     sessionId: uuid("session_id")
       .notNull()
       .references(() => commuteSessions.id, { onDelete: "cascade" }),
-    tag: text("tag").notNull(), // e.g. "path_delay", "crowded", "missed_train", "bad_weather", "slow_walking"
+    tag: text("tag").notNull(),
     note: text("note"),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   },
@@ -190,9 +192,9 @@ export const recommendationSnapshots = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     direction: text("direction").$type<Direction>().notNull(),
-    bestBand: text("best_band").notNull(), // e.g. "08:40-08:50"
+    bestBand: text("best_band").notNull(),
     fallbackBands: jsonb("fallback_bands").$type<string[]>(),
-    confidence: text("confidence").notNull(), // "high" | "medium" | "low"
+    confidence: text("confidence").notNull(),
     explanation: text("explanation").notNull(),
     scoringInputs: jsonb("scoring_inputs"),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
@@ -205,10 +207,12 @@ export const transitSnapshots = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     route: text("route").default("JSQ-WTC").notNull(),
-    status: text("status").notNull(), // "normal", "delays", "suspended", "unknown"
+    status: text("status").notNull(),
     advisoryText: text("advisory_text"),
     headwayMin: real("headway_min"),
     source: text("source").notNull(),
+    // v2.5: richer metadata
+    sourceType: text("source_type"), // "gtfsrt" | "panynj-json" | "schedule"
     rawData: jsonb("raw_data"),
     fetchedAt: timestamp("fetched_at", { mode: "date" }).defaultNow().notNull(),
   },
@@ -219,16 +223,63 @@ export const weatherSnapshots = pgTable(
   "weather_snapshots",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    temperature: real("temperature"), // Fahrenheit
+    temperature: real("temperature"),
     feelsLike: real("feels_like"),
-    precipProbability: real("precip_probability"), // 0-100
-    precipType: text("precip_type"), // "rain", "snow", etc.
-    windSpeed: real("wind_speed"), // mph
-    condition: text("condition"), // "clear", "cloudy", "rain", etc.
+    precipProbability: real("precip_probability"),
+    precipType: text("precip_type"),
+    windSpeed: real("wind_speed"),
+    condition: text("condition"),
     isSevere: boolean("is_severe").default(false).notNull(),
-    forecastHours: jsonb("forecast_hours"), // next few hours forecast
+    forecastHours: jsonb("forecast_hours"),
     source: text("source").notNull(),
     fetchedAt: timestamp("fetched_at", { mode: "date" }).defaultNow().notNull(),
   },
   (t) => [index("idx_weather_fetched").on(t.fetchedAt)]
 );
+
+// ─── v2.5 tables ──────────────────────────────────────────────────────────────
+
+export const streakSnapshots = pgTable(
+  "streak_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" })
+      .unique(),
+    checkinStreak: integer("checkin_streak").default(0).notNull(),
+    longestCheckinStreak: integer("longest_checkin_streak").default(0).notNull(),
+    onTimeStreak: integer("on_time_streak").default(0).notNull(),
+    fastestOutbound: real("fastest_outbound"),
+    fastestReturn: real("fastest_return"),
+    totalCommutes: integer("total_commutes").default(0).notNull(),
+    lastComputedAt: timestamp("last_computed_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("idx_streak_user").on(t.userId)]
+);
+
+export const notificationLog = pgTable(
+  "notification_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(), // "leave_reminder" | "service_alert" | "weather_alert"
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    tag: text("tag"), // dedupe key
+    delivered: boolean("delivered").default(false).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("idx_notif_user").on(t.userId, t.createdAt),
+    index("idx_notif_tag").on(t.tag),
+  ]
+);
+
+export const rateLimitBuckets = pgTable("rate_limit_buckets", {
+  key: text("key").primaryKey(), // "userId:endpoint"
+  tokens: integer("tokens").default(0).notNull(),
+  lastRefill: timestamp("last_refill", { mode: "date" }).defaultNow().notNull(),
+});

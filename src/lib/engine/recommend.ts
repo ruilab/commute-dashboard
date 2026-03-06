@@ -60,6 +60,14 @@ export interface HistoricalStats {
   sampleCount: number;
 }
 
+export interface LearnedPenalties {
+  rain: number;
+  snow: number;
+  extremeTemp: number;
+  highWind: number;
+  transitDelay: number;
+}
+
 interface EngineInput {
   direction: Direction;
   transit: TransitInfo;
@@ -69,6 +77,7 @@ interface EngineInput {
   windowStart: string; // "08:30"
   windowEnd: string; // "10:00"
   baseTrainTimeMin?: number; // Override per-route (default 13)
+  learnedPenalties?: LearnedPenalties | null; // v2.5: correlation-derived
 }
 
 const BAND_INTERVAL_MIN = 10; // Evaluate every 10 minutes
@@ -125,8 +134,9 @@ function scoreBand(
   minute: number,
   input: EngineInput
 ): DepartureBand {
-  const { direction, transit, weather, walking, historical, baseTrainTimeMin } = input;
+  const { direction, transit, weather, walking, historical, baseTrainTimeMin, learnedPenalties } = input;
   const trainTime = baseTrainTimeMin ?? BASE_TRAIN_TIME;
+  const lp = learnedPenalties;
 
   const transitSeverity = getTransitSeverity(transit);
   const weatherPenalty = getWeatherPenalty(weather);
@@ -145,11 +155,28 @@ function scoreBand(
     ? Math.min(transit.headwayMin / 2, 10)
     : BASE_WAIT_TIME;
 
-  // Delay addition based on transit severity
-  const delayPenaltyMin = transitSeverity * 15; // Up to 15 min delay
+  // Delay penalty: use learned if available, else heuristic
+  const delayPenaltyMin = (lp && transitSeverity > 0 && lp.transitDelay > 0)
+    ? transitSeverity * lp.transitDelay
+    : transitSeverity * 15;
 
-  // Weather impact on walking
-  const weatherWalkPenalty = weatherPenalty * 3; // Up to 3 min slower walking
+  // Weather impact: use learned penalties for specific conditions if available
+  let weatherWalkPenalty = weatherPenalty * 3; // default heuristic
+  if (lp) {
+    const cond = weather.condition;
+    if ((cond === "rain" || cond === "drizzle") && lp.rain > 0) {
+      weatherWalkPenalty = lp.rain * weatherPenalty;
+    } else if (cond === "snow" && lp.snow > 0) {
+      weatherWalkPenalty = lp.snow * weatherPenalty;
+    }
+    // Add temperature/wind learned penalty (scaled by severity)
+    if (lp.extremeTemp > 0 && (weather.feelsLike < 32 || weather.feelsLike > 85)) {
+      weatherWalkPenalty += lp.extremeTemp * 0.5;
+    }
+    if (lp.highWind > 0 && weather.windSpeed > 18) {
+      weatherWalkPenalty += lp.highWind * 0.3;
+    }
+  }
 
   // Historical adjustment
   const key = bandKey(hour, minute);
