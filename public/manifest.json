@@ -1,7 +1,7 @@
 {
   "name": "Commute Dashboard",
   "short_name": "Commute",
-  "description": "JSQ ↔ WTC commute optimizer",
+  "description": "Tri-state office commute optimizer",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",

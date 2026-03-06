@@ -1,14 +1,14 @@
 # Commute Dashboard
 
-Personal commute optimizer for PATH train routes (JSQ ↔ WTC, JSQ ↔ 33rd, HOB ↔ WTC, HOB ↔ 33rd). A mobile-first PWA that helps determine the best time to leave for work and return home, combining real-time transit status, weather forecasts, calendar integration, and personal commute history.
+Tri-state (NY/NJ/CT) office commute optimizer. A mobile-first PWA that helps determine the best time to leave for work and return home, combining real-time transit status, weather forecasts, calendar integration, and personal commute history. Supports PATH, MTA subway, NJ Transit, Metro-North, LIRR, and ferry routes.
 
 ## What it does
 
-Answers two questions every weekday:
+Answers two questions every commute day:
 - **"When should I leave this morning?"**
-- **"When should I leave WTC tonight?"**
+- **"When should I head home tonight?"**
 
-The dashboard shows recommended departure windows with confidence levels and plain-English explanations, combining PATH service status, weather conditions, and historical trip durations.
+The dashboard shows recommended departure windows with confidence levels and plain-English explanations, combining transit service status, weather conditions, and historical trip durations.
 
 ## Features
 

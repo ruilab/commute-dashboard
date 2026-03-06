@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Commute Dashboard",
-  description: "JSQ ↔ WTC commute optimizer",
+  description: "Tri-state office commute optimizer",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

@@ -12,7 +12,7 @@ export default async function DashboardPage() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Commute Dashboard</h1>
-          <p className="text-sm text-muted-foreground">JSQ ↔ WTC</p>
+          <p className="text-sm text-muted-foreground">NY · NJ · CT</p>
         </div>
       </header>
       <Suspense

@@ -23,7 +23,7 @@ export default async function SignInPage() {
         <div>
           <h1 className="text-2xl font-semibold">Commute Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            JSQ ↔ WTC · Personal commute optimizer
+            Tri-state office commute optimizer
           </p>
         </div>
         <SignInForm requireCode={requireCode} onSignIn={handleSignIn} />
