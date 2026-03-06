@@ -2,25 +2,31 @@
 
 import { getTransitStatus } from "@/lib/services/transit";
 import { getWeather } from "@/lib/services/weather";
+import { getCalendarContext } from "@/lib/services/calendar";
 import { generateRecommendation } from "@/lib/engine/recommend";
 import { getSettings } from "@/lib/actions/settings";
 import { getHistoricalStats } from "@/lib/actions/commute";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { recommendationSnapshots, transitSnapshots, weatherSnapshots } from "@/lib/db/schema";
+import {
+  recommendationSnapshots,
+  transitSnapshots,
+  weatherSnapshots,
+} from "@/lib/db/schema";
 import type { Direction } from "@/lib/db/schema";
 
 export async function getDashboardData() {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const [transit, weather, settings, outboundStats, returnStats] =
+  const [transit, weather, settings, outboundStats, returnStats, calendar] =
     await Promise.all([
       getTransitStatus(),
       getWeather(),
       getSettings(),
       getHistoricalStats("outbound"),
       getHistoricalStats("return"),
+      getCalendarContext(session.user.id).catch(() => null),
     ]);
 
   const walking = {
@@ -30,6 +36,23 @@ export async function getDashboardData() {
     jsqToHome: settings?.walkJsqToHome ?? 8,
   };
 
+  // If calendar says "must arrive by 9:30", adjust morning window end
+  let morningWindowEnd = settings?.morningWindowEnd ?? "10:00";
+  if (calendar?.mustArriveBy) {
+    // Work backward: must arrive - train time - wait - walk to station
+    const [h, m] = calendar.mustArriveBy.split(":").map(Number);
+    const arriveByMin = h * 60 + m;
+    const trainAndWait = 13 + 5; // base train + average wait
+    const walkToStation = walking.homeToJsq;
+    const latestDepartMin = arriveByMin - trainAndWait - walkToStation;
+    const latestDepart = `${Math.floor(latestDepartMin / 60).toString().padStart(2, "0")}:${(latestDepartMin % 60).toString().padStart(2, "0")}`;
+
+    // Only constrain if it's earlier than current window end
+    if (latestDepart < morningWindowEnd) {
+      morningWindowEnd = latestDepart;
+    }
+  }
+
   const morningRec = generateRecommendation({
     direction: "outbound",
     transit,
@@ -37,7 +60,7 @@ export async function getDashboardData() {
     walking,
     historical: outboundStats,
     windowStart: settings?.morningWindowStart ?? "08:30",
-    windowEnd: settings?.morningWindowEnd ?? "10:00",
+    windowEnd: morningWindowEnd,
   });
 
   const eveningRec = generateRecommendation({
@@ -51,9 +74,13 @@ export async function getDashboardData() {
   });
 
   // Persist snapshots (fire and forget)
-  persistSnapshots(session.user.id, transit, weather, morningRec, eveningRec).catch(
-    () => {}
-  );
+  persistSnapshots(
+    session.user.id,
+    transit,
+    weather,
+    morningRec,
+    eveningRec
+  ).catch(() => {});
 
   return {
     transit: {
@@ -82,6 +109,15 @@ export async function getDashboardData() {
       forecastHours: weather.forecastHours,
       source: weather.source,
     },
+    calendar: calendar
+      ? {
+          connected: calendar.connected,
+          firstMeetingTime: calendar.firstMeetingTime?.toISOString() ?? null,
+          firstMeetingTitle: calendar.firstMeetingTitle,
+          eventsToday: calendar.eventsToday,
+          mustArriveBy: calendar.mustArriveBy,
+        }
+      : null,
     morningRec: {
       bestBand: morningRec.bestBand.label,
       fallbackBands: morningRec.fallbackBands.map((b) => b.label),

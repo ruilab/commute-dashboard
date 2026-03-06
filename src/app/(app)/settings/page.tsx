@@ -39,6 +39,21 @@ export default async function SettingsPage() {
         />
       </Suspense>
 
+      {/* Calendar integration */}
+      <div className="rounded-xl bg-card p-4 shadow-sm">
+        <h3 className="mb-3 font-medium">Calendar</h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Connect Google Calendar to adjust morning recommendations based on
+          your first meeting time.
+        </p>
+        <a
+          href="/api/calendar/connect"
+          className="tap-target inline-block rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+        >
+          Connect Google Calendar
+        </a>
+      </div>
+
       <div className="rounded-xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div>

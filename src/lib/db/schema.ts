@@ -109,6 +109,21 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+export const calendarConnections = pgTable("calendar_connections", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
+  provider: text("provider").default("google").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at", { mode: "date" }),
+  calendarId: text("calendar_id").default("primary"),
+  enabled: boolean("enabled").default(true).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 export type Direction = "outbound" | "return";
 
 export const commuteSessions = pgTable(

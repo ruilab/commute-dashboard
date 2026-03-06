@@ -193,6 +193,31 @@ export async function DashboardContent() {
         )}
       </div>
 
+      {/* Calendar context */}
+      {data.calendar?.connected && data.calendar.firstMeetingTitle && (
+        <div className="rounded-xl bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📅</span>
+            <div>
+              <p className="text-sm font-medium">
+                {data.calendar.firstMeetingTitle}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {data.calendar.firstMeetingTime &&
+                  new Date(data.calendar.firstMeetingTime).toLocaleTimeString(
+                    "en-US",
+                    { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }
+                  )}
+                {data.calendar.mustArriveBy &&
+                  ` · Must arrive by ${data.calendar.mustArriveBy}`}
+                {data.calendar.eventsToday > 1 &&
+                  ` · ${data.calendar.eventsToday} events today`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Morning Recommendation */}
       <RecommendationCard
         title="Morning Departure"
