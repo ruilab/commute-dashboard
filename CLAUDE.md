@@ -38,9 +38,23 @@ bun run db:generate      # Generate migrations
 - All timestamps in UTC via Drizzle `{ mode: "date" }`
 - Time strings as "HH:MM" in settings
 - Direction: "outbound" | "return"
+- Commute mode: "subway" | "ferry" (ferry infrastructure ready, not active)
+- Commute days: "weekdays" | "all" | "custom" (per-user in DB)
 - Route IDs: "JSQ-WTC", "JSQ-33", "HOB-WTC", "HOB-33"
 - API responses: `NextResponse.json()`
 - Fire-and-forget DB writes: `.catch(() => {})`
+
+## Onboarding
+- First login → `/onboarding` (5-step wizard)
+- Re-run: `/onboarding?reset=1` (linked from Settings)
+- Sets `onboardingCompletedAt` timestamp in user_settings
+- Dashboard checks this and redirects if null
+- See `docs/ONBOARDING.md`
+
+## User-Specific Rules
+- `chenrui333`: subway only, weekdays only (set via onboarding defaults)
+- Cron respects per-user `commuteDays` — no weekend prompts for weekday users
+- Ferry mode exists in schema but is disabled in onboarding UI ("Coming soon")
 
 ## Security
 - **Public repo**: all code/config/docs are publicly visible
