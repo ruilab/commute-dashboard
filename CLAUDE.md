@@ -63,7 +63,8 @@ bun run db:generate      # Generate migrations
 ## User-Specific Rules
 - `chenrui333`: subway only, weekdays only (set via onboarding defaults)
 - Cron respects per-user `commuteDays` — no weekend prompts for weekday users
-- Ferry mode exists in schema but is disabled in onboarding UI ("Coming soon")
+- Ferry mode enabled in onboarding (Hoboken ↔ Brookfield Place, Paulus Hook ↔ WFC)
+- Bus and commuter rail disabled in onboarding ("Coming soon")
 
 ## Security
 - **Public repo**: all code/config/docs are publicly visible

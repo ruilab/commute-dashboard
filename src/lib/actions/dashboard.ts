@@ -1,6 +1,7 @@
 "use server";
 
 import { getTransitStatus, getRouteConfig } from "@/lib/services/transit";
+import { getFerryStatus, FERRY_ROUTES } from "@/lib/services/ferry";
 import { getWeather } from "@/lib/services/weather";
 import { getCalendarContext } from "@/lib/services/calendar";
 import { generateRecommendation } from "@/lib/engine/recommend";
@@ -58,11 +59,15 @@ export async function getDashboardData() {
       : [settingsData?.activeRoute ?? "JSQ-WTC"];
 
   const primaryRoute = activeRoutes[0];
-  const routeConfig = getRouteConfig(primaryRoute);
+  const userMode = settingsData?.preferredMode ?? "subway";
+  const isFerry = userMode === "ferry" || primaryRoute in FERRY_ROUTES;
+  const routeConfig = isFerry
+    ? { ...FERRY_ROUTES[primaryRoute], id: primaryRoute, stations: FERRY_ROUTES[primaryRoute]?.terminals ?? [], keywords: [], baseTrainTimeMin: FERRY_ROUTES[primaryRoute]?.baseCrossingTimeMin ?? 10 }
+    : getRouteConfig(primaryRoute);
 
   const [transit, weather, outboundStats, returnStats, calendar, correlations] =
     await Promise.all([
-      getTransitStatus(primaryRoute),
+      isFerry ? getFerryStatus(primaryRoute) : getTransitStatus(primaryRoute),
       getWeather(),
       getHistoricalStats("outbound"),
       getHistoricalStats("return"),
@@ -180,6 +185,7 @@ export async function getDashboardData() {
     },
     activeRoutes,
     primaryRoute,
+    userMode,
     additionalRoutes: additionalRoutes.filter(Boolean),
     usesLearnedPenalties: learnedPenalties !== null && correlations !== null && correlations.dataPoints >= 5,
     generatedAt: new Date().toISOString(),

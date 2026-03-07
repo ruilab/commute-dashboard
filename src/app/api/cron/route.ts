@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { getTransitStatus } from "@/lib/services/transit";
+import { getFerryStatus } from "@/lib/services/ferry";
 import { getWeather } from "@/lib/services/weather";
 import { sendPushNotification } from "@/lib/services/push";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -76,10 +77,14 @@ export async function GET(req: Request) {
   };
 
   try {
-    // 1. Background data refresh
-    const [transit, weather] = await Promise.all([
+    // 1. Background data refresh (PATH + Ferry + Weather in parallel)
+    const [transit, ferry, weather] = await Promise.all([
       getTransitStatus().catch((e: Error) => {
         results.errors.push(`transit: ${e.message}`);
+        return null;
+      }),
+      getFerryStatus("HOB-BFP").catch((e: Error) => {
+        results.errors.push(`ferry: ${e.message}`);
         return null;
       }),
       getWeather().catch((e: Error) => {
@@ -101,6 +106,20 @@ export async function GET(req: Request) {
         });
       }
       results.transitRefresh = true;
+    }
+
+    if (ferry) {
+      if (!isDryRun) {
+        await db.insert(transitSnapshots).values({
+          route: "HOB-BFP",
+          mode: "ferry",
+          status: ferry.status,
+          advisoryText: ferry.advisoryText,
+          headwayMin: ferry.headwayMin,
+          source: ferry.source,
+          sourceType: "ferry-schedule",
+        });
+      }
     }
 
     if (weather) {

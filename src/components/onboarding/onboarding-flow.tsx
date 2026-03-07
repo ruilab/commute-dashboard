@@ -8,9 +8,9 @@ type PreferredMode = "path" | "subway" | "bus" | "commuter_rail" | "ferry";
 type RiskTolerance = "conservative" | "moderate" | "aggressive";
 type ReliabilityPref = "fastest" | "most_reliable" | "least_crowded";
 
-const MODES = [
+const MODES: { id: string; label: string; icon: string; desc: string; disabled?: boolean; disabledReason?: string }[] = [
   { id: "subway", label: "Subway (PATH)", icon: "🚇", desc: "PATH train service" },
-  { id: "ferry", label: "Ferry", icon: "⛴️", desc: "NYC Ferry / NJ Waterway", disabled: true, disabledReason: "Coming soon" },
+  { id: "ferry", label: "Ferry", icon: "⛴️", desc: "NYC Ferry / NJ Waterway" },
 ];
 
 const HOME_AREAS = [
@@ -29,7 +29,7 @@ const PREFERRED_MODES: { id: PreferredMode; label: string; desc: string; disable
   { id: "subway", label: "MTA Subway", desc: "Useful if you transfer after PATH" },
   { id: "bus", label: "Bus", desc: "NJT or MTA surface options", disabled: true },
   { id: "commuter_rail", label: "Commuter Rail", desc: "NJT, LIRR, Metro-North", disabled: true },
-  { id: "ferry", label: "Ferry", desc: "NYC Ferry and NJ Waterway", disabled: true },
+  { id: "ferry", label: "Ferry", desc: "NYC Ferry and NJ Waterway" },
 ];
 
 const RISK_OPTIONS: { id: RiskTolerance; label: string; desc: string }[] = [
@@ -54,6 +54,17 @@ const SUBWAY_ROUTES = [
   { id: "JSQ-33", label: "JSQ ↔ 33rd St", time: "~25 min" },
   { id: "HOB-WTC", label: "Hoboken ↔ WTC", time: "~15 min" },
   { id: "HOB-33", label: "Hoboken ↔ 33rd St", time: "~18 min" },
+];
+
+const FERRY_ROUTES = [
+  { id: "HOB-BFP", label: "Hoboken ↔ Brookfield Place", time: "~10 min" },
+  { id: "PAU-WFC", label: "Paulus Hook ↔ WFC", time: "~8 min" },
+  { id: "HOB-P11", label: "Hoboken ↔ Pier 11/Wall St", time: "~12 min" },
+  { id: "LIB-BFP", label: "Liberty Harbor ↔ BFP", time: "~8 min" },
+  { id: "LIB-P11", label: "Liberty Harbor ↔ Pier 11", time: "~15 min" },
+  { id: "PI-BFP", label: "Port Imperial ↔ BFP", time: "~12 min" },
+  { id: "PI-P11", label: "Port Imperial ↔ Pier 11", time: "~25 min" },
+  { id: "H14-BFP", label: "Hoboken 14th ↔ BFP", time: "~15 min" },
 ];
 
 interface OnboardingState {
@@ -223,7 +234,11 @@ export function OnboardingFlow() {
               {MODES.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => !m.disabled && update({ mode: m.id })}
+                  onClick={() => {
+                    if (m.disabled) return;
+                    const defaultRoutes = m.id === "ferry" ? ["HOB-BFP"] : ["JSQ-WTC"];
+                    update({ mode: m.id, routes: defaultRoutes });
+                  }}
                   disabled={m.disabled}
                   className={`tap-target rounded-xl border p-4 text-left transition-colors ${
                     state.mode === m.id
@@ -297,37 +312,47 @@ export function OnboardingFlow() {
       )}
 
       {/* Step 1: Route */}
-      {state.step === 1 && (
-        <div>
-          <h2 className="mb-3 font-medium">Select your route(s)</h2>
-          <div className="space-y-2">
-            {SUBWAY_ROUTES.map((r) => {
-              const active = state.routes.includes(r.id);
-              return (
-                <button
-                  key={r.id}
-                  onClick={() => {
-                    if (active && state.routes.length > 1) {
-                      update({ routes: state.routes.filter((x) => x !== r.id) });
-                    } else if (!active) {
-                      update({ routes: [...state.routes, r.id] });
-                    }
-                  }}
-                  className={`tap-target flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
-                    active ? "border-primary bg-primary/5" : "border-border"
-                  }`}
-                >
-                  <div>
-                    <p className="font-medium">{r.label}</p>
-                    <p className="text-xs text-muted-foreground">{r.time}</p>
-                  </div>
-                  {active && <span className="text-primary text-lg">✓</span>}
-                </button>
-              );
-            })}
+      {state.step === 1 && (() => {
+        const availableRoutes = state.mode === "ferry" ? FERRY_ROUTES : SUBWAY_ROUTES;
+        return (
+          <div>
+            <h2 className="mb-3 font-medium">Select your route(s)</h2>
+            {availableRoutes.length > 0 ? (
+              <div className="space-y-2">
+                {availableRoutes.map((r) => {
+                  const active = state.routes.includes(r.id);
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        if (active && state.routes.length > 1) {
+                          update({ routes: state.routes.filter((x) => x !== r.id) });
+                        } else if (!active) {
+                          update({ routes: [...state.routes, r.id] });
+                        }
+                      }}
+                      className={`tap-target flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
+                        active ? "border-primary bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <div>
+                        <p className="font-medium">{r.label}</p>
+                        <p className="text-xs text-muted-foreground">{r.time}</p>
+                      </div>
+                      {active && <span className="text-primary text-lg">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">
+                Route selection for this mode will be available once schedule data is collected.
+                You can still proceed — recommendations will use default schedules.
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Step 2: Walking times */}
       {state.step === 2 && (

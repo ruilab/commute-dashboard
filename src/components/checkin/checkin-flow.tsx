@@ -20,24 +20,49 @@ interface ActiveSession {
   tags: { tag: string; note: string | null }[];
 }
 
-const OUTBOUND_STEPS: { step: EventStep; label: string; icon: string }[] = [
+type StepDef = { step: EventStep; label: string; icon: string };
+
+const SUBWAY_OUTBOUND_STEPS: StepDef[] = [
   { step: "start_commute", label: "Left home", icon: "🏠" },
-  { step: "reached_station", label: "At JSQ station", icon: "🚉" },
+  { step: "reached_station", label: "At station", icon: "🚉" },
   { step: "boarded_train", label: "On train", icon: "🚇" },
-  { step: "arrived_wtc", label: "Arrived WTC", icon: "🏙️" },
+  { step: "arrived_wtc", label: "Arrived", icon: "🏙️" },
   { step: "arrived_destination", label: "At office", icon: "🏢" },
 ];
 
-const RETURN_STEPS: { step: EventStep; label: string; icon: string }[] = [
+const SUBWAY_RETURN_STEPS: StepDef[] = [
   { step: "start_commute", label: "Left office", icon: "🏢" },
-  { step: "reached_station", label: "At WTC station", icon: "🚉" },
+  { step: "reached_station", label: "At station", icon: "🚉" },
   { step: "boarded_train", label: "On train", icon: "🚇" },
-  { step: "arrived_jsq", label: "Arrived JSQ", icon: "🚉" },
+  { step: "arrived_jsq", label: "Arrived", icon: "🚉" },
   { step: "arrived_destination", label: "Home", icon: "🏠" },
 ];
 
+const FERRY_OUTBOUND_STEPS: StepDef[] = [
+  { step: "start_commute", label: "Left home", icon: "🏠" },
+  { step: "reached_terminal", label: "At ferry terminal", icon: "🚢" },
+  { step: "boarded_ferry", label: "On ferry", icon: "⛴️" },
+  { step: "arrived_wtc", label: "Arrived", icon: "🏙️" },
+  { step: "arrived_destination", label: "At office", icon: "🏢" },
+];
+
+const FERRY_RETURN_STEPS: StepDef[] = [
+  { step: "start_commute", label: "Left office", icon: "🏢" },
+  { step: "reached_terminal", label: "At ferry terminal", icon: "🚢" },
+  { step: "boarded_ferry", label: "On ferry", icon: "⛴️" },
+  { step: "arrived_jsq", label: "Arrived", icon: "🚉" },
+  { step: "arrived_destination", label: "Home", icon: "🏠" },
+];
+
+function getSteps(direction: Direction, mode: string): StepDef[] {
+  if (mode === "ferry") {
+    return direction === "outbound" ? FERRY_OUTBOUND_STEPS : FERRY_RETURN_STEPS;
+  }
+  return direction === "outbound" ? SUBWAY_OUTBOUND_STEPS : SUBWAY_RETURN_STEPS;
+}
+
 const QUICK_TAGS = [
-  { tag: "path_delay", label: "PATH delay", icon: "⏰" },
+  { tag: "path_delay", label: "Transit delay", icon: "⏰" },
   { tag: "crowded", label: "Crowded", icon: "👥" },
   { tag: "missed_train", label: "Missed train", icon: "🏃" },
   { tag: "bad_weather", label: "Bad weather", icon: "🌧️" },
@@ -46,8 +71,10 @@ const QUICK_TAGS = [
 
 export function CheckinFlow({
   activeSession,
+  mode = "subway",
 }: {
   activeSession: ActiveSession | null;
+  mode?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -104,7 +131,7 @@ export function CheckinFlow({
             <span className="text-3xl">🌅</span>
             <span className="font-medium">To Office</span>
             <span className="text-xs text-muted-foreground">
-              Home → JSQ → WTC
+              {mode === "ferry" ? "Home → Terminal → Office" : "Home → Station → Office"}
             </span>
           </button>
           <button
@@ -115,7 +142,7 @@ export function CheckinFlow({
             <span className="text-3xl">🌆</span>
             <span className="font-medium">To Home</span>
             <span className="text-xs text-muted-foreground">
-              WTC → JSQ → Home
+              {mode === "ferry" ? "Office → Terminal → Home" : "Office → Station → Home"}
             </span>
           </button>
         </div>
@@ -123,11 +150,8 @@ export function CheckinFlow({
     );
   }
 
-  // Active session: show step progress
-  const steps =
-    activeSession.session.direction === "outbound"
-      ? OUTBOUND_STEPS
-      : RETURN_STEPS;
+  // Active session: show step progress (mode-aware)
+  const steps = getSteps(activeSession.session.direction, mode);
   const completedSteps = new Set(activeSession.events.map((e) => e.step));
   const nextStepIdx = steps.findIndex((s) => !completedSteps.has(s.step));
 

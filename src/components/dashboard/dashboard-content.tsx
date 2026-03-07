@@ -65,8 +65,8 @@ export async function DashboardContent() {
       <div className="rounded-xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🚇</span>
-            <h2 className="font-medium">PATH Status</h2>
+            <span className="text-lg">{data.userMode === "ferry" ? "⛴️" : "🚇"}</span>
+            <h2 className="font-medium">{data.userMode === "ferry" ? "Ferry Status" : "Transit Status"}</h2>
           </div>
           <div className="flex items-center gap-2">
             <StatusDot status={data.transit.status} />
